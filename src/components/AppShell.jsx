@@ -1001,10 +1001,12 @@ function ChatsView({ messages, selChat, onSelectChat, onReply }) {
   const selected = selChat ? entries.find(e => e.num === selChat) : null
 
   return (
-    <div className="av" id="vChat" style={{ display: 'block' }}>
-      <div style={{ marginBottom: 28 }}><h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 4 }}>Chats</h1><p style={{ color: 'var(--fg2)', fontSize: 14 }}>Customer conversations handled by your bot</p></div>
-      <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: 0, border: '1px solid var(--brd)', borderRadius: 14, overflow: 'hidden', height: 'calc(100vh - 180px)', minHeight: 500 }}>
-        <div style={{ background: 'var(--bg2)', borderRight: '1px solid var(--brd)', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+    <div className="av" id="vChat" style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 120px)' }}>
+      <div style={{ marginBottom: 20 }}><h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 4 }}>Chats</h1><p style={{ color: 'var(--fg2)', fontSize: 14 }}>Customer conversations handled by your bot</p></div>
+      
+      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '300px 1fr', border: '1px solid var(--brd)', borderRadius: 14, overflow: 'hidden', background: 'var(--bg2)' }}>
+        {/* Sidebar */}
+        <div style={{ borderRight: '1px solid var(--brd)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <div style={{ padding: 16, borderBottom: '1px solid var(--brd)' }}>
             <input type="text" className="fi" placeholder="Search chats..." style={{ padding: '10px 14px', fontSize: 13 }} />
           </div>
@@ -1026,7 +1028,7 @@ function ChatsView({ messages, selChat, onSelectChat, onReply }) {
                         <span style={{ fontSize: 14, fontWeight: 600 }}>{name}</span>
                         <span style={{ fontSize: 11, color: 'var(--fg3)' }}>{timeAgo(e.last.created_at)}</span>
                       </div>
-                      <div style={{ fontSize: 12, color: 'var(--fg3)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 200 }}>{e.last.content}</div>
+                      <div style={{ fontSize: 12, color: 'var(--fg3)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.last.content}</div>
                     </div>
                   </div>
                 </div>
@@ -1034,7 +1036,9 @@ function ChatsView({ messages, selChat, onSelectChat, onReply }) {
             })}
           </div>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', position: 'relative' }}>
+
+        {/* Chat Area */}
+        <div style={{ display: 'flex', flexDirection: 'column', background: '#0b141a', position: 'relative', overflow: 'hidden' }}>
           {selected ? (
             <>
               <div style={{ background: 'var(--bg2)', padding: '14px 20px', borderBottom: '1px solid var(--brd)', display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -1044,12 +1048,12 @@ function ChatsView({ messages, selChat, onSelectChat, onReply }) {
                   <div style={{ fontSize: 11, color: 'var(--fg3)' }}>{selChat}</div>
                 </div>
                 <span className="badge b-on">{selected.conversationCount} chat{selected.conversationCount > 1 ? 's' : ''}</span>
-                <span className="badge b-on"><i className="fa-solid fa-robot" style={{ fontSize: 10, marginRight: 3 }} /> Bot</span>
               </div>
-              <div ref={scrollRef} style={{ flex: 1, padding: 20, overflowY: 'auto', background: '#0b141a', display: 'flex', flexDirection: 'column', gap: 10 }}>
+              
+              <div ref={scrollRef} style={{ flex: 1, padding: '20px 24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {selected.msgs.map(m => (
                   <div key={m.id} style={{ display: 'flex', flexDirection: 'column', alignItems: m.role === 'user' ? 'flex-start' : 'flex-end' }}>
-                    <div className={m.role === 'user' ? 'cbi' : 'cbo'} style={{ whiteSpace: 'pre-line' }}>{escHtml(m.content)}</div>
+                    <div className={m.role === 'user' ? 'cbi' : 'cbo'} style={{ whiteSpace: 'pre-line', boxShadow: '0 1px 2px rgba(0,0,0,0.1)' }}>{escHtml(m.content)}</div>
                     <span style={{ fontSize: 10, color: 'rgba(255,255,255,.3)', marginTop: 4, padding: '0 4px' }}>
                       {new Date(m.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
                       {m.role === 'assistant' && ' · Bot'}
@@ -1057,18 +1061,20 @@ function ChatsView({ messages, selChat, onSelectChat, onReply }) {
                   </div>
                 ))}
               </div>
-              <div style={{ padding: 12, background: 'var(--bg2)', borderTop: '1px solid var(--brd)' }}>
-                <div className="wi" style={{ background: 'var(--bg3)', borderRadius: 10, padding: '8px 14px' }}>
+
+              <div style={{ padding: '12px 16px', background: 'var(--bg2)', borderTop: '1px solid var(--brd)' }}>
+                <div className="wi" style={{ background: 'var(--bg3)', borderRadius: 12, padding: '4px 8px 4px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
                   <input
                     type="text"
-                    className="fi"
                     placeholder="Reply to customer..."
-                    style={{ flex: 1, background: 'transparent', border: 'none', padding: 0 }}
+                    style={{ flex: 1, background: 'transparent', border: 'none', color: '#fff', fontSize: 14, padding: '10px 0', outline: 'none' }}
                     value={input}
                     onChange={e => setInput(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && handleSend()}
                   />
-                  <button className="btn-p" style={{ padding: '6px 12px' }} onClick={handleSend}><i className="fa-solid fa-paper-plane" /></button>
+                  <button className="btn-p" style={{ padding: '8px 12px', borderRadius: 10 }} onClick={handleSend}>
+                    <i className="fa-solid fa-paper-plane" />
+                  </button>
                 </div>
               </div>
             </>
