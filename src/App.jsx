@@ -7,6 +7,7 @@ import Signup from './components/Signup'
 import AppShell from './components/AppShell'
 import AdminDashboard from './components/AdminDashboard'
 import Privacy from './components/Privacy'
+import Terms from './components/Terms'
 
 function App() {
   const [page, setPage] = useState('pgLand')
@@ -24,6 +25,9 @@ function App() {
     // Basic routing for Meta verification
     if (window.location.pathname === '/privacy') {
       setPage('pgPrivacy')
+    }
+    if (window.location.pathname === '/terms') {
+      setPage('pgTerms')
     }
 
     const initAuth = async () => {
@@ -113,7 +117,8 @@ function App() {
     pgApp: user && profile ? (
       <AppShell user={user} profile={profile} onUpdateProfile={handleUpdateProfile} onLogout={handleLogout} toast={toast} />
     ) : <Landing onNavigate={setPage} />,
-    pgPrivacy: <Privacy />
+    pgPrivacy: <Privacy />,
+    pgTerms: <Terms />
   }
 
   return (

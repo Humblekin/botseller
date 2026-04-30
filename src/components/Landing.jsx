@@ -198,7 +198,10 @@ export default function Landing({ onNavigate }) {
           <span style={{ fontFamily: "'Space Grotesk'", fontWeight: 600, fontSize: 16 }}>BotSeller</span>
         </div>
         <p style={{ color: 'var(--fg3)', fontSize: 13, marginBottom: 8 }}>Made for businesses in Ghana and beyond.</p>
-        <button className="btn-g" onClick={() => onNavigate('pgPrivacy')} style={{ fontSize: 11, padding: '4px 8px' }}>Privacy Policy</button>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 12 }}>
+          <button className="btn-g" onClick={() => onNavigate('pgPrivacy')} style={{ fontSize: 11, padding: '4px 8px' }}>Privacy Policy</button>
+          <button className="btn-g" onClick={() => onNavigate('pgTerms')} style={{ fontSize: 11, padding: '4px 8px' }}>Terms of Service</button>
+        </div>
       </footer>
     </div>
   );
