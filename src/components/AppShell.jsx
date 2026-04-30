@@ -231,7 +231,7 @@ export default function AppShell({ user, profile, onUpdateProfile, onLogout, toa
   const fetchData = useCallback(async () => {
     if (!user) return
 
-    const prodRes = supabase.from('products').select('*').order('created_at', { ascending: false })
+    const prodRes = supabase.from('products').select('*').eq('user_id', user.id).order('created_at', { ascending: false })
     const subRes = supabase.from('subscriptions').select('*').eq('user_id', user.id).single()
     const msgRes = supabase.from('messages').select('*').eq('business_id', user.id).order('created_at', { ascending: true }).limit(500)
     const waRes = supabase.from('whatsapp_connections').select('*').eq('user_id', user.id).limit(1).single()
