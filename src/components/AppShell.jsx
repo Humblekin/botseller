@@ -25,11 +25,13 @@ function escHtml(s) {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }
 
-function genAIReply(input, profile, products) {
+function genAIReply(input, profile, products, businessInfo) {
   const biz = profile?.business_name || 'our store'
   const low = input.toLowerCase()
+  const loc = businessInfo?.address || 'our physical location'
 
   function prodList(max = 5) {
+    if (products.length === 0) return "We're currently updating our catalog. Check back soon!"
     return products.slice(0, max).map((p, i) => `${i + 1}. ${p.name} — GH₵ ${p.price}`).join('\n')
   }
 
@@ -37,14 +39,18 @@ function genAIReply(input, profile, products) {
 
   if (/^(hi|hello|hey|good morning|good afternoon|good evening|yo|sup|hiya)/.test(low)) {
     text = `Welcome to ${biz}! I'm here to help.\n\nHere's what we have:\n${prodList()}\n\nWhat are you looking for?`
+  } else if (/location|where|place|address|located|office|shop|branch|ghana/.test(low)) {
+    text = `You can find us at ${loc}. We're happy to assist you there!\n\nWould you like to see our products or place an order?`
   } else if (/price|how much|cost|cheap|expensive|afford|budget/.test(low)) {
     text = `Here are our current prices:\n\n${prodList()}\n\nWhich one fits your budget? I can recommend the best value!`
-    const match = products.find(p => low.includes(p.name.toLowerCase()))
-    if (match) { image = match.image_url; imgName = match.name; imgPrice = match.price }
-    else { const rp = products[Math.floor(Math.random() * products.length)]; image = rp.image_url; imgName = rp.name; imgPrice = rp.price }
+    if (products.length > 0) {
+      const match = products.find(p => low.includes(p.name.toLowerCase()))
+      if (match) { image = match.image_url; imgName = match.name; imgPrice = match.price }
+      else { const rp = products[Math.floor(Math.random() * products.length)]; image = rp.image_url; imgName = rp.name; imgPrice = rp.price }
+    }
   } else if (/discount|deal|offer|reduce|lower|negotiate|barter/.test(low)) {
     text = `I appreciate you asking! We do offer discounts on bulk orders.\n\nBuy 2+ items and get 10% off. Which products interest you?\n\n${prodList(3)}`
-  } else if (/delivery|ship|deliver|kumasi|accra|tamale|location/.test(low)) {
+  } else if (/delivery|ship|deliver|kumasi|accra|tamale/.test(low)) {
     text = `Yes, we deliver nationwide across Ghana! Delivery is usually within 1-3 business days depending on your location.\n\nIs there anything from our catalog you'd like to order?\n\n${prodList(3)}`
   } else if (/thank|thanks|bye|goodbye|okay|ok|great|nice/.test(low)) {
     text = `You're welcome! If you need anything else, just message me anytime. I'm always here to help at ${biz}. Have a great day!`
@@ -55,11 +61,15 @@ function genAIReply(input, profile, products) {
       image = match.image_url; imgName = match.name; imgPrice = match.price
     } else {
       text = `Great! Which specific product would you like to order?\n\n${prodList()}\n\nJust let me know and I'll sort it out.`
-      const rp = products[Math.floor(Math.random() * products.length)]; image = rp.image_url; imgName = rp.name; imgPrice = rp.price
+      if (products.length > 0) {
+        const rp = products[Math.floor(Math.random() * products.length)]; image = rp.image_url; imgName = rp.name; imgPrice = rp.price
+      }
     }
   } else {
     text = `Thanks for your message! Let me help you with that.\n\nHere's what we offer at ${biz}:\n${prodList()}\n\nLet me know if anything catches your eye — I'm happy to give you more details!`
-    const rp = products[Math.floor(Math.random() * products.length)]; image = rp.image_url; imgName = rp.name; imgPrice = rp.price
+    if (products.length > 0) {
+      const rp = products[Math.floor(Math.random() * products.length)]; image = rp.image_url; imgName = rp.name; imgPrice = rp.price
+    }
   }
 
   return { text, image, imgName, imgPrice }
@@ -542,7 +552,7 @@ export default function AppShell({ user, profile, onUpdateProfile, onLogout, toa
     setTbMessages(prev => [...prev, { from: 'user', text }])
 
     setTimeout(async () => {
-      const reply = genAIReply(text, profile, products)
+      const reply = genAIReply(text, profile, products, businessInfo)
       const botMsg = { from: 'bot', text: reply.text }
       if (reply.image && planKey !== 'starter') {
         botMsg.image = reply.image
