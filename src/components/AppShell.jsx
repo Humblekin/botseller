@@ -25,6 +25,20 @@ function escHtml(s) {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }
 
+async function sendWhatsApp(to, text, token, phoneId) {
+  try {
+    const res = await fetch(`https://graph.facebook.com/v19.0/${phoneId}/messages`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messaging_product: 'whatsapp', to, type: 'text', text: { body: text } })
+    })
+    return await res.json()
+  } catch (err) {
+    console.error('WhatsApp send error:', err)
+    return { error: err.message }
+  }
+}
+
 function genAIReply(input, profile, products, businessInfo) {
   const biz = profile?.business_name || 'our store'
   const low = input.toLowerCase()
@@ -222,7 +236,14 @@ export default function AppShell({ user, profile, onUpdateProfile, onLogout, toa
   const [whAmt, setWhAmt] = useState(0)
   const [whDone, setWhDone] = useState(false)
 
-  const [tbMessages, setTbMessages] = useState([])
+  const [tbMessages, setTbMessages] = useState(() => {
+    const saved = localStorage.getItem('bs_test_messages')
+    return saved ? JSON.parse(saved) : []
+  })
+
+  useEffect(() => {
+    localStorage.setItem('bs_test_messages', JSON.stringify(tbMessages))
+  }, [tbMessages])
   const [businessInfo, setBusinessInfo] = useState(null)
   const [orders, setOrders] = useState([])
 
@@ -252,24 +273,16 @@ export default function AppShell({ user, profile, onUpdateProfile, onLogout, toa
     const [prod, sub, msg, wa, bs, bi, ord] = await Promise.all([prodRes, subRes, msgRes, waRes, bsRes, biRes, ordRes])
 
     if (!prod.error) setProducts(prod.data || [])
-    else console.warn('Products fetch error:', prod.error.message)
-
     if (!sub.error) setSubscription(sub.data)
-    else console.warn('Subscription fetch error:', sub.error.message)
-
     if (!msg.error) {
       setMessages(msg.data || [])
       setMsgCount(getMsgCount(msg.data || []))
-    } else console.warn('Messages fetch error:', msg.error.message)
-
+    }
     if (!wa.error && wa.data) {
       setWaConnected(true)
       setWaNumber(wa.data.phone_number)
-    } else console.warn('WhatsApp fetch error:', wa?.error?.message || 'Not connected')
-
+    }
     if (!bs.error && bs.data) setBotSettings(bs.data)
-    else console.warn('Bot settings fetch error:', bs?.error?.message || 'Using defaults')
-
     if (!bi.error && bi.data) setBusinessInfo(bi.data)
     if (!ord.error) setOrders(ord.data || [])
 
@@ -593,6 +606,39 @@ export default function AppShell({ user, profile, onUpdateProfile, onLogout, toa
     }, 800 + Math.random() * 800)
   }
 
+  const handleManualReply = async (customerNum, text) => {
+    if (!text.trim()) return
+    if (!waConnected) { toast('Connect WhatsApp to send messages', 'err'); return }
+
+    // Get connection details
+    const { data: conn } = await supabase.from('whatsapp_connections').select('*').eq('user_id', user.id).single()
+    if (!conn) { toast('WhatsApp connection not found', 'err'); return }
+
+    const res = await sendWhatsApp(customerNum, text, conn.access_token, conn.phone_id)
+    if (res.error || (res.errors && res.errors.length)) {
+      toast('Failed to send WhatsApp message: ' + (res.error?.message || res.errors?.[0]?.message), 'err')
+      return
+    }
+
+    const { data: lastMsg } = await supabase.from('messages').select('conversation_id').eq('business_id', user.id).eq('customer_number', customerNum).order('created_at', { ascending: false }).limit(1).maybeSingle()
+    const conversationId = lastMsg?.conversation_id || crypto.randomUUID()
+
+    const { data: newMsg, error } = await supabase.from('messages').insert({
+      business_id: user.id,
+      customer_number: customerNum,
+      conversation_id: conversationId,
+      role: 'assistant',
+      content: text,
+      metadata: JSON.stringify({ source: 'dashboard_manual' })
+    }).select().single()
+
+    if (error) console.error('Error saving manual message:', error)
+    else if (newMsg) {
+      setMessages(prev => [...prev, newMsg])
+      toast('Message sent!', 'ok')
+    }
+  }
+
   return (
     <div className="page active">
       <button className="mtg" onClick={() => setSidebarOpen(o => !o)} aria-label="Toggle menu">
@@ -652,7 +698,7 @@ export default function AppShell({ user, profile, onUpdateProfile, onLogout, toa
             onAdd={() => openProdModal()} onEdit={openProdModal} onDelete={setDelProdId}
           />
         )}
-        {view === 'vChat' && <ChatsView messages={messages} selChat={selChat} onSelectChat={setSelChat} />}
+        {view === 'vChat' && <ChatsView messages={messages} selChat={selChat} onSelectChat={setSelChat} onReply={handleManualReply} />}
         {view === 'vWA' && (
           <WhatsAppView
             waConnected={waConnected} waNumber={waNumber} products={products}
@@ -924,7 +970,20 @@ function ProductsView({ products, planData, onAdd, onEdit, onDelete }) {
   )
 }
 
-function ChatsView({ messages, selChat, onSelectChat }) {
+function ChatsView({ messages, selChat, onSelectChat, onReply }) {
+  const [input, setInput] = useState('')
+  const scrollRef = useRef(null)
+
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+  }, [selChat, messages])
+
+  const handleSend = () => {
+    if (!input.trim()) return
+    onReply(selChat, input)
+    setInput('')
+  }
+
   const customerMap = {}
   messages.forEach(m => {
     if (!customerMap[m.customer_number]) customerMap[m.customer_number] = []
@@ -975,7 +1034,7 @@ function ChatsView({ messages, selChat, onSelectChat }) {
             })}
           </div>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', position: 'relative' }}>
           {selected ? (
             <>
               <div style={{ background: 'var(--bg2)', padding: '14px 20px', borderBottom: '1px solid var(--brd)', display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -987,7 +1046,7 @@ function ChatsView({ messages, selChat, onSelectChat }) {
                 <span className="badge b-on">{selected.conversationCount} chat{selected.conversationCount > 1 ? 's' : ''}</span>
                 <span className="badge b-on"><i className="fa-solid fa-robot" style={{ fontSize: 10, marginRight: 3 }} /> Bot</span>
               </div>
-              <div style={{ flex: 1, padding: 20, overflowY: 'auto', background: '#0b141a', display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div ref={scrollRef} style={{ flex: 1, padding: 20, overflowY: 'auto', background: '#0b141a', display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {selected.msgs.map(m => (
                   <div key={m.id} style={{ display: 'flex', flexDirection: 'column', alignItems: m.role === 'user' ? 'flex-start' : 'flex-end' }}>
                     <div className={m.role === 'user' ? 'cbi' : 'cbo'} style={{ whiteSpace: 'pre-line' }}>{escHtml(m.content)}</div>
@@ -997,6 +1056,20 @@ function ChatsView({ messages, selChat, onSelectChat }) {
                     </span>
                   </div>
                 ))}
+              </div>
+              <div style={{ padding: 12, background: 'var(--bg2)', borderTop: '1px solid var(--brd)' }}>
+                <div className="wi" style={{ background: 'var(--bg3)', borderRadius: 10, padding: '8px 14px' }}>
+                  <input
+                    type="text"
+                    className="fi"
+                    placeholder="Reply to customer..."
+                    style={{ flex: 1, background: 'transparent', border: 'none', padding: 0 }}
+                    value={input}
+                    onChange={e => setInput(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleSend()}
+                  />
+                  <button className="btn-p" style={{ padding: '6px 12px' }} onClick={handleSend}><i className="fa-solid fa-paper-plane" /></button>
+                </div>
               </div>
             </>
           ) : (
