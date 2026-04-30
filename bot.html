@@ -1,0 +1,1204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BotSeller — WhatsApp AI Sales Assistant</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+:root{
+  --bg:#060d09;--bg2:#0c1610;--card:#111e17;--card2:#162a1f;
+  --brd:#1e3a2b;--brd2:#2a4d38;
+  --fg:#e4f0e8;--fg2:#7a9b88;--fg3:#4a6a56;
+  --ac:#25D366;--ac2:#3BE07A;--ac3:#1a8f45;--acg:rgba(37,211,102,.15);
+  --red:#ef4444;--warn:#f59e0b;--info:#06b6d4;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--fg);overflow-x:hidden;min-height:100vh}
+h1,h2,h3,h4,h5,h6{font-family:'Space Grotesk',sans-serif}
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--brd);border-radius:3px}
+
+.mesh-bg{position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:radial-gradient(ellipse 600px 400px at 20% 30%,rgba(37,211,102,.06),transparent),
+  radial-gradient(ellipse 500px 500px at 80% 70%,rgba(37,211,102,.04),transparent),
+  radial-gradient(ellipse 300px 300px at 50% 50%,rgba(6,182,212,.03),transparent);
+  animation:meshM 20s ease-in-out infinite alternate}
+@keyframes meshM{0%{transform:scale(1) translate(0,0)}50%{transform:scale(1.05) translate(-20px,10px)}100%{transform:scale(1) translate(10px,-20px)}}
+.grid-bg{position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:linear-gradient(rgba(37,211,102,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(37,211,102,.03) 1px,transparent 1px);
+  background-size:60px 60px}
+
+.page{display:none;opacity:0;transform:translateY(12px)}
+.page.active{display:block;animation:pgIn .4s ease forwards}
+@keyframes pgIn{to{opacity:1;transform:translateY(0)}}
+
+.btn-p{background:var(--ac);color:#000;font-weight:600;padding:12px 28px;border-radius:10px;border:none;cursor:pointer;font-size:15px;font-family:'Space Grotesk';transition:all .2s}
+.btn-p:hover{background:var(--ac2);transform:translateY(-1px);box-shadow:0 8px 30px rgba(37,211,102,.3)}
+.btn-p:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}
+.btn-s{background:transparent;color:var(--fg);font-weight:500;padding:12px 28px;border-radius:10px;border:1px solid var(--brd);cursor:pointer;font-size:15px;font-family:'Space Grotesk';transition:all .2s}
+.btn-s:hover{border-color:var(--ac);color:var(--ac);background:var(--acg)}
+.btn-s:disabled{opacity:.4;cursor:not-allowed}
+.btn-g{background:transparent;color:var(--fg2);font-weight:500;padding:8px 16px;border-radius:8px;border:none;cursor:pointer;font-size:14px;transition:all .15s}
+.btn-g:hover{color:var(--fg);background:rgba(255,255,255,.05)}
+.btn-d{background:rgba(239,68,68,.1);color:var(--red);font-weight:500;padding:8px 16px;border-radius:8px;border:1px solid rgba(239,68,68,.2);cursor:pointer;font-size:14px;transition:all .2s}
+.btn-d:hover{background:rgba(239,68,68,.2)}
+
+.card{background:var(--card);border:1px solid var(--brd);border-radius:14px;padding:24px;transition:all .25s}
+.card:hover{border-color:var(--brd2);background:var(--card2)}
+.fi{width:100%;padding:12px 16px;background:var(--bg2);border:1px solid var(--brd);border-radius:10px;color:var(--fg);font-size:15px;font-family:'DM Sans';transition:all .2s;outline:none}
+.fi:focus{border-color:var(--ac);box-shadow:0 0 0 3px var(--acg)}
+.fi::placeholder{color:var(--fg3)}
+.fl{display:block;font-size:12px;font-weight:600;color:var(--fg2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px;font-family:'Space Grotesk'}
+
+.sidebar{position:fixed;left:0;top:0;bottom:0;width:260px;background:var(--bg2);border-right:1px solid var(--brd);z-index:40;display:flex;flex-direction:column;transition:transform .3s}
+.sl{display:flex;align-items:center;gap:12px;padding:11px 20px;color:var(--fg2);text-decoration:none;font-size:14px;font-weight:500;border-radius:8px;margin:2px 12px;transition:all .15s;cursor:pointer}
+.sl:hover{color:var(--fg);background:rgba(255,255,255,.04)}
+.sl.on{color:var(--ac);background:var(--acg)}
+.sl i{width:20px;text-align:center;font-size:15px}
+.mc{margin-left:260px;padding:32px;min-height:100vh;position:relative;z-index:1}
+
+.toast-c{position:fixed;top:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px}
+.toast{padding:14px 20px;border-radius:10px;font-size:14px;font-weight:500;display:flex;align-items:center;gap:10px;animation:tIn .3s ease,tOut .3s ease 3s forwards;min-width:280px;box-shadow:0 10px 40px rgba(0,0,0,.4)}
+.toast-ok{background:#0d2818;border:1px solid var(--ac3);color:var(--ac2)}
+.toast-err{background:#2d0f0f;border:1px solid #7f1d1d;color:#fca5a5}
+.toast-info{background:#0c1e2e;border:1px solid #164e63;color:#67e8f9}
+@keyframes tIn{from{opacity:0;transform:translateX(40px)}to{opacity:1;transform:translateX(0)}}
+@keyframes tOut{to{opacity:0;transform:translateX(40px)}}
+
+.mo{position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);z-index:100;display:none;align-items:center;justify-content:center}
+.mo.open{display:flex}
+.md{background:var(--card);border:1px solid var(--brd);border-radius:16px;padding:32px;max-width:520px;width:90%;max-height:85vh;overflow-y:auto;animation:mdIn .3s ease}
+@keyframes mdIn{from{opacity:0;transform:scale(.95) translateY(10px)}to{opacity:1;transform:scale(1) translateY(0)}}
+
+.si{width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px}
+.cbi{background:#1a2731;border:1px solid #2a3e4a;border-radius:16px 16px 16px 4px;padding:12px 16px;max-width:75%;font-size:14px;line-height:1.5}
+.cbo{background:var(--ac3);color:#e4f0e8;border-radius:16px 16px 4px 16px;padding:12px 16px;max-width:75%;font-size:14px;line-height:1.5}
+
+.uz{border:2px dashed var(--brd);border-radius:12px;padding:32px;text-align:center;cursor:pointer;transition:all .2s}
+.uz:hover{border-color:var(--ac);background:var(--acg)}
+.uz.has-img{padding:8px;border-style:solid;border-color:var(--ac3)}
+
+.sd{width:8px;height:8px;border-radius:50%;display:inline-block}
+.sd.on{background:var(--ac);box-shadow:0 0 8px var(--ac)}
+.sd.off{background:var(--fg3)}
+.sd.wrn{background:var(--warn);box-shadow:0 0 8px var(--warn)}
+
+.ph{position:relative;border-color:var(--ac)!important;box-shadow:0 0 40px rgba(37,211,102,.1)}
+.ph::before{content:'Popular';position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:var(--ac);color:#000;font-size:12px;font-weight:700;padding:4px 16px;border-radius:20px;font-family:'Space Grotesk';text-transform:uppercase;letter-spacing:.5px}
+
+.wh{background:#075e54;padding:14px 20px;border-radius:12px 12px 0 0;display:flex;align-items:center;gap:12px}
+.wb{background:#0b141a;padding:20px;min-height:350px;max-height:420px;overflow-y:auto;display:flex;flex-direction:column;gap:10px}
+.wi{background:#1a2731;padding:12px 16px;border-radius:0 0 12px 12px;display:flex;align-items:center;gap:10px}
+
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600}
+.b-on{background:rgba(37,211,102,.15);color:var(--ac)}
+.b-off{background:rgba(239,68,68,.15);color:var(--red)}
+.b-wrn{background:rgba(245,158,11,.15);color:var(--warn)}
+
+.pbar{height:6px;background:var(--bg);border-radius:3px;overflow:hidden}
+.pfill{height:100%;background:var(--ac);border-radius:3px;transition:width .6s ease}
+
+.mtg{display:none;position:fixed;top:16px;left:16px;z-index:50;width:42px;height:42px;background:var(--card);border:1px solid var(--brd);border-radius:10px;align-items:center;justify-content:center;cursor:pointer;color:var(--fg);font-size:18px}
+@media(max-width:768px){.sidebar{transform:translateX(-100%)}.sidebar.open{transform:translateX(0)}.mc{margin-left:0;padding:20px;padding-top:68px}.mtg{display:flex}}
+
+.fc{position:relative;overflow:hidden}
+.fc::after{content:'';position:absolute;inset:0;background:radial-gradient(circle at var(--mx,50%) var(--my,50%),rgba(37,211,102,.08),transparent 60%);opacity:0;transition:opacity .3s;pointer-events:none}
+.fc:hover::after{opacity:1}
+
+.particle{position:absolute;width:3px;height:3px;background:var(--ac);border-radius:50%;opacity:0;animation:pf 6s ease-in-out infinite}
+@keyframes pf{0%,100%{opacity:0;transform:translateY(0) scale(0)}10%{opacity:.6}50%{opacity:.3;transform:translateY(-80px) scale(1)}90%{opacity:0}}
+
+.exp-banner{background:linear-gradient(90deg,rgba(239,68,68,.15),rgba(239,68,68,.05));border:1px solid rgba(239,68,68,.25);border-radius:10px;padding:14px 20px;display:flex;align-items:center;gap:12px;margin-bottom:20px}
+
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+</style>
+</head>
+<body>
+<div class="mesh-bg"></div>
+<div class="grid-bg"></div>
+<div class="toast-c" id="TC"></div>
+
+<!-- ==================== LANDING ==================== -->
+<div class="page active" id="pgLand">
+  <nav style="position:fixed;top:0;left:0;right:0;z-index:30;background:rgba(6,13,9,.85);backdrop-filter:blur(16px);border-bottom:1px solid var(--brd)">
+    <div style="max-width:1200px;margin:0 auto;padding:16px 32px;display:flex;align-items:center;justify-content:space-between">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="width:36px;height:36px;background:var(--ac);border-radius:10px;display:flex;align-items:center;justify-content:center"><i class="fa-brands fa-whatsapp" style="color:#000;font-size:20px"></i></div>
+        <span style="font-family:'Space Grotesk';font-weight:700;font-size:20px">BotSeller</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <button class="btn-g" onclick="nav('pgLogin')">Sign In</button>
+        <button class="btn-p" onclick="nav('pgSignup')" style="padding:10px 22px">Get Started</button>
+      </div>
+    </div>
+  </nav>
+
+  <header style="padding:140px 32px 80px;text-align:center;max-width:900px;margin:0 auto;position:relative">
+    <div class="particle" style="left:10%;top:20%;animation-delay:0s"></div>
+    <div class="particle" style="left:80%;top:15%;animation-delay:1s"></div>
+    <div class="particle" style="left:30%;top:60%;animation-delay:2s"></div>
+    <div class="particle" style="left:70%;top:50%;animation-delay:3s"></div>
+    <div class="particle" style="left:50%;top:30%;animation-delay:4s"></div>
+    <div class="particle" style="left:20%;top:70%;animation-delay:1.5s"></div>
+
+    <div style="display:inline-flex;align-items:center;gap:8px;background:var(--acg);border:1px solid var(--ac3);border-radius:24px;padding:6px 16px;margin-bottom:28px">
+      <span class="sd on"></span>
+      <span style="font-size:13px;color:var(--ac);font-weight:500">Built for Ghanaian businesses</span>
+    </div>
+    <h1 style="font-size:clamp(36px,6vw,64px);font-weight:700;line-height:1.1;margin-bottom:20px">Your WhatsApp<br>becomes a <span style="color:var(--ac)">Sales Machine</span></h1>
+    <p style="font-size:18px;color:var(--fg2);max-width:600px;margin:0 auto 36px;line-height:1.7">Connect your WhatsApp, upload your products, and let AI handle every customer conversation — automatically closing sales while you sleep.</p>
+    <div style="display:flex;gap:14px;justify-content:center;flex-wrap:wrap">
+      <button class="btn-p" onclick="nav('pgSignup')" style="padding:16px 36px;font-size:16px">Start Free Trial <i class="fa-solid fa-arrow-right" style="margin-left:8px"></i></button>
+      <button class="btn-s" onclick="document.getElementById('landFeat').scrollIntoView({behavior:'smooth'})" style="padding:16px 36px;font-size:16px">See How It Works</button>
+    </div>
+
+    <!-- Hero WhatsApp mock -->
+    <div style="max-width:380px;margin:60px auto 0;position:relative">
+      <div style="background:var(--card);border:1px solid var(--brd);border-radius:20px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.5)">
+        <div class="wh">
+          <div style="width:36px;height:36px;background:rgba(255,255,255,.15);border-radius:50%;display:flex;align-items:center;justify-content:center"><i class="fa-solid fa-store" style="font-size:14px;color:#fff"></i></div>
+          <div><div style="font-size:14px;font-weight:600;color:#fff">Kwame's Electronics</div><div style="font-size:11px;color:rgba(255,255,255,.6)">online</div></div>
+        </div>
+        <div class="wb" id="heroChat"></div>
+        <div class="wi"><span style="color:rgba(255,255,255,.3);font-size:14px">Type a message...</span><i class="fa-solid fa-microphone" style="color:rgba(255,255,255,.4);margin-left:auto"></i></div>
+      </div>
+    </div>
+  </header>
+
+  <section id="landFeat" style="max-width:1100px;margin:0 auto;padding:60px 32px">
+    <div style="text-align:center;margin-bottom:48px">
+      <h2 style="font-size:32px;font-weight:700;margin-bottom:12px">How BotSeller Works</h2>
+      <p style="color:var(--fg2);font-size:16px">Three steps to automate your WhatsApp sales</p>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px">
+      <div class="card fc" onmousemove="tm(event,this)">
+        <div style="width:48px;height:48px;background:var(--acg);border-radius:12px;display:flex;align-items:center;justify-content:center;margin-bottom:16px"><i class="fa-solid fa-box-open" style="color:var(--ac);font-size:20px"></i></div>
+        <h3 style="font-size:18px;font-weight:600;margin-bottom:8px">Upload Your Products</h3>
+        <p style="color:var(--fg2);font-size:14px;line-height:1.6">Add products with names, prices, descriptions and photos. The AI learns your entire catalog to sell for you.</p>
+      </div>
+      <div class="card fc" onmousemove="tm(event,this)">
+        <div style="width:48px;height:48px;background:var(--acg);border-radius:12px;display:flex;align-items:center;justify-content:center;margin-bottom:16px"><i class="fa-brands fa-whatsapp" style="color:var(--ac);font-size:20px"></i></div>
+        <h3 style="font-size:18px;font-weight:600;margin-bottom:8px">Connect WhatsApp</h3>
+        <p style="color:var(--fg2);font-size:14px;line-height:1.6">Link your business WhatsApp number with one click. Your bot starts responding to customers instantly.</p>
+      </div>
+      <div class="card fc" onmousemove="tm(event,this)">
+        <div style="width:48px;height:48px;background:var(--acg);border-radius:12px;display:flex;align-items:center;justify-content:center;margin-bottom:16px"><i class="fa-solid fa-robot" style="color:var(--ac);font-size:20px"></i></div>
+        <h3 style="font-size:18px;font-weight:600;margin-bottom:8px">AI Sells For You</h3>
+        <p style="color:var(--fg2);font-size:14px;line-height:1.6">Smart AI answers questions, suggests products, shares images, negotiates prices, and closes deals 24/7.</p>
+      </div>
+    </div>
+  </section>
+
+  <section style="max-width:1100px;margin:0 auto;padding:40px 32px 60px">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px">
+      <div class="card" style="text-align:center"><div style="font-size:36px;font-weight:700;color:var(--ac);font-family:'Space Grotesk'">2,400+</div><div style="color:var(--fg2);font-size:14px;margin-top:4px">Messages handled daily</div></div>
+      <div class="card" style="text-align:center"><div style="font-size:36px;font-weight:700;color:var(--ac);font-family:'Space Grotesk'">340+</div><div style="color:var(--fg2);font-size:14px;margin-top:4px">Active businesses</div></div>
+      <div class="card" style="text-align:center"><div style="font-size:36px;font-weight:700;color:var(--ac);font-family:'Space Grotesk'">68%</div><div style="color:var(--fg2);font-size:14px;margin-top:4px">Average conversion lift</div></div>
+      <div class="card" style="text-align:center"><div style="font-size:36px;font-weight:700;color:var(--ac);font-family:'Space Grotesk'">GH₵1.2M</div><div style="color:var(--fg2);font-size:14px;margin-top:4px">Sales generated this month</div></div>
+    </div>
+  </section>
+
+  <section style="max-width:1100px;margin:0 auto;padding:40px 32px 80px">
+    <div style="text-align:center;margin-bottom:48px">
+      <h2 style="font-size:32px;font-weight:700;margin-bottom:12px">Simple Pricing</h2>
+      <p style="color:var(--fg2);font-size:16px">Start free. Upgrade when you're ready.</p>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px;max-width:920px;margin:0 auto">
+      <div class="card" style="text-align:center">
+        <div style="font-size:14px;color:var(--fg2);font-weight:600;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">Starter</div>
+        <div style="font-size:42px;font-weight:700;font-family:'Space Grotesk';margin-bottom:4px">Free</div>
+        <div style="color:var(--fg3);font-size:13px;margin-bottom:24px">7-day trial</div>
+        <ul style="text-align:left;list-style:none;display:flex;flex-direction:column;gap:10px;margin-bottom:28px">
+          <li style="font-size:14px;color:var(--fg2);display:flex;align-items:center;gap:8px"><i class="fa-solid fa-check" style="color:var(--ac);font-size:12px"></i> 50 messages/month</li>
+          <li style="font-size:14px;color:var(--fg2);display:flex;align-items:center;gap:8px"><i class="fa-solid fa-check" style="color:var(--ac);font-size:12px"></i> 10 products</li>
+          <li style="font-size:14px;color:var(--fg2);display:flex;align-items:center;gap:8px"><i class="fa-solid fa-check" style="color:var(--ac);font-size:12px"></i> Basic AI text replies</li>
+          <li style="font-size:14px;color:var(--fg3);display:flex;align-items:center;gap:8px"><i class="fa-solid fa-xmark" style="font-size:12px"></i> No image sending</li>
+        </ul>
+        <button class="btn-s" style="width:100%" onclick="nav('pgSignup')">Start Free</button>
+      </div>
+      <div class="card ph" style="text-align:center">
+        <div style="font-size:14px;color:var(--ac);font-weight:600;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">Business</div>
+        <div style="font-size:42px;font-weight:700;font-family:'Space Grotesk';margin-bottom:4px">GH₵ 99<span style="font-size:16px;font-weight:400;color:var(--fg2)">/mo</span></div>
+        <div style="color:var(--fg3);font-size:13px;margin-bottom:24px">Billed monthly</div>
+        <ul style="text-align:left;list-style:none;display:flex;flex-direction:column;gap:10px;margin-bottom:28px">
+          <li style="font-size:14px;color:var(--fg2);display:flex;align-items:center;gap:8px"><i class="fa-solid fa-check" style="color:var(--ac);font-size:12px"></i> 2,000 messages/month</li>
+          <li style="font-size:14px;color:var(--fg2);display:flex;align-items:center;gap:8px"><i class="fa-solid fa-check" style="color:var(--ac);font-size:12px"></i> Unlimited products</li>
+          <li style="font-size:14px;color:var(--fg2);display:flex;align-items:center;gap:8px"><i class="fa-solid fa-check" style="color:var(--ac);font-size:12px"></i> AI sends product images</li>
+          <li style="font-size:14px;color:var(--fg2);display:flex;align-items:center;gap:8px"><i class="fa-solid fa-check" style="color:var(--ac);font-size:12px"></i> Chat analytics</li>
+        </ul>
+        <button class="btn-p" style="width:100%" onclick="nav('pgSignup')">Get Business Plan</button>
+      </div>
+      <div class="card" style="text-align:center">
+        <div style="font-size:14px;color:var(--fg2);font-weight:600;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">Enterprise</div>
+        <div style="font-size:42px;font-weight:700;font-family:'Space Grotesk';margin-bottom:4px">GH₵ 249<span style="font-size:16px;font-weight:400;color:var(--fg2)">/mo</span></div>
+        <div style="color:var(--fg3);font-size:13px;margin-bottom:24px">Billed monthly</div>
+        <ul style="text-align:left;list-style:none;display:flex;flex-direction:column;gap:10px;margin-bottom:28px">
+          <li style="font-size:14px;color:var(--fg2);display:flex;align-items:center;gap:8px"><i class="fa-solid fa-check" style="color:var(--ac);font-size:12px"></i> Unlimited messages</li>
+          <li style="font-size:14px;color:var(--fg2);display:flex;align-items:center;gap:8px"><i class="fa-solid fa-check" style="color:var(--ac);font-size:12px"></i> Unlimited products</li>
+          <li style="font-size:14px;color:var(--fg2);display:flex;align-items:center;gap:8px"><i class="fa-solid fa-check" style="color:var(--ac);font-size:12px"></i> Advanced AI customization</li>
+          <li style="font-size:14px;color:var(--fg2);display:flex;align-items:center;gap:8px"><i class="fa-solid fa-check" style="color:var(--ac);font-size:12px"></i> Priority support</li>
+        </ul>
+        <button class="btn-s" style="width:100%" onclick="nav('pgSignup')">Contact Sales</button>
+      </div>
+    </div>
+  </section>
+  <footer style="border-top:1px solid var(--brd);padding:40px 32px;text-align:center">
+    <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:16px">
+      <div style="width:28px;height:28px;background:var(--ac);border-radius:8px;display:flex;align-items:center;justify-content:center"><i class="fa-brands fa-whatsapp" style="color:#000;font-size:15px"></i></div>
+      <span style="font-family:'Space Grotesk';font-weight:600;font-size:16px">BotSeller</span>
+    </div>
+    <p style="color:var(--fg3);font-size:13px">Made for businesses in Ghana and beyond.</p>
+  </footer>
+</div>
+
+<!-- ==================== LOGIN ==================== -->
+<div class="page" id="pgLogin">
+  <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:32px">
+    <div style="width:100%;max-width:420px">
+      <div style="text-align:center;margin-bottom:36px">
+        <div style="width:48px;height:48px;background:var(--ac);border-radius:14px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px"><i class="fa-brands fa-whatsapp" style="color:#000;font-size:24px"></i></div>
+        <h1 style="font-size:28px;font-weight:700;margin-bottom:6px">Welcome back</h1>
+        <p style="color:var(--fg2);font-size:14px">Sign in to your BotSeller dashboard</p>
+      </div>
+      <div class="card" style="padding:32px">
+        <div style="margin-bottom:20px"><label class="fl">Email</label><input type="email" class="fi" id="lEmail" placeholder="you@example.com"></div>
+        <div style="margin-bottom:24px"><label class="fl">Password</label><input type="password" class="fi" id="lPass" placeholder="Enter your password"></div>
+        <button class="btn-p" style="width:100%;margin-bottom:16px" onclick="doLogin()">Sign In</button>
+        <p style="text-align:center;font-size:14px;color:var(--fg2)">Don't have an account? <a href="#" onclick="nav('pgSignup');return false" style="color:var(--ac);text-decoration:none;font-weight:500">Sign up</a></p>
+      </div>
+      <p style="text-align:center;margin-top:16px"><a href="#" onclick="nav('pgLand');return false" style="color:var(--fg3);font-size:13px;text-decoration:none"><i class="fa-solid fa-arrow-left" style="margin-right:4px"></i> Back to home</a></p>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== SIGNUP ==================== -->
+<div class="page" id="pgSignup">
+  <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:32px">
+    <div style="width:100%;max-width:420px">
+      <div style="text-align:center;margin-bottom:36px">
+        <div style="width:48px;height:48px;background:var(--ac);border-radius:14px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px"><i class="fa-brands fa-whatsapp" style="color:#000;font-size:24px"></i></div>
+        <h1 style="font-size:28px;font-weight:700;margin-bottom:6px">Create your account</h1>
+        <p style="color:var(--fg2);font-size:14px">Start selling on WhatsApp with AI</p>
+      </div>
+      <div class="card" style="padding:32px">
+        <div style="margin-bottom:20px"><label class="fl">Business Name</label><input type="text" class="fi" id="sBiz" placeholder="e.g. Kwame's Electronics"></div>
+        <div style="margin-bottom:20px"><label class="fl">Email</label><input type="email" class="fi" id="sEmail" placeholder="you@example.com"></div>
+        <div style="margin-bottom:24px"><label class="fl">Password</label><input type="password" class="fi" id="sPass" placeholder="Min 6 characters"></div>
+        <button class="btn-p" style="width:100%;margin-bottom:16px" onclick="doSignup()">Create Account</button>
+        <p style="text-align:center;font-size:14px;color:var(--fg2)">Already have an account? <a href="#" onclick="nav('pgLogin');return false" style="color:var(--ac);text-decoration:none;font-weight:500">Sign in</a></p>
+      </div>
+      <p style="text-align:center;margin-top:16px"><a href="#" onclick="nav('pgLand');return false" style="color:var(--fg3);font-size:13px;text-decoration:none"><i class="fa-solid fa-arrow-left" style="margin-right:4px"></i> Back to home</a></p>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== APP SHELL ==================== -->
+<div class="page" id="pgApp">
+  <button class="mtg" onclick="document.getElementById('sidebar').classList.toggle('open')" aria-label="Toggle menu"><i class="fa-solid fa-bars"></i></button>
+
+  <aside class="sidebar" id="sidebar">
+    <div style="padding:20px 20px 16px;border-bottom:1px solid var(--brd)">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="width:34px;height:34px;background:var(--ac);border-radius:9px;display:flex;align-items:center;justify-content:center"><i class="fa-brands fa-whatsapp" style="color:#000;font-size:18px"></i></div>
+        <span style="font-family:'Space Grotesk';font-weight:700;font-size:17px">BotSeller</span>
+      </div>
+    </div>
+    <nav style="flex:1;padding:12px 0;overflow-y:auto">
+      <div style="padding:0 20px 8px;font-size:11px;color:var(--fg3);text-transform:uppercase;letter-spacing:1px;font-weight:600">Main</div>
+      <div class="sl on" data-v="vDash" onclick="sv('vDash',this)"><i class="fa-solid fa-grid-2"></i> Dashboard</div>
+      <div class="sl" data-v="vProd" onclick="sv('vProd',this)"><i class="fa-solid fa-box"></i> Products</div>
+      <div class="sl" data-v="vChat" onclick="sv('vChat',this)"><i class="fa-solid fa-comments"></i> Chats <span id="chatBadge" style="margin-left:auto;background:var(--ac);color:#000;font-size:11px;font-weight:700;padding:2px 7px;border-radius:10px;display:none">0</span></div>
+      <div style="padding:16px 20px 8px;font-size:11px;color:var(--fg3);text-transform:uppercase;letter-spacing:1px;font-weight:600">Setup</div>
+      <div class="sl" data-v="vWA" onclick="sv('vWA',this)"><i class="fa-brands fa-whatsapp"></i> WhatsApp</div>
+      <div class="sl" data-v="vPlan" onclick="sv('vPlan',this)"><i class="fa-solid fa-crown"></i> Subscription</div>
+      <div class="sl" data-v="vSet" onclick="sv('vSet',this)"><i class="fa-solid fa-gear"></i> Settings</div>
+    </nav>
+    <div style="padding:16px;border-top:1px solid var(--brd)">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="width:34px;height:34px;background:var(--acg);border:1px solid var(--ac3);border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:600;color:var(--ac);font-size:14px" id="uAvatar">K</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" id="uName">Business</div>
+          <div style="font-size:11px;color:var(--fg3)" id="uEmail">email</div>
+        </div>
+        <button class="btn-g" style="padding:6px" onclick="doLogout()" title="Sign out" aria-label="Sign out"><i class="fa-solid fa-right-from-bracket" style="font-size:14px;color:var(--fg3)"></i></button>
+      </div>
+    </div>
+  </aside>
+
+  <main class="mc">
+
+    <!-- DASHBOARD -->
+    <div class="av active" id="vDash">
+      <div id="expBanner"></div>
+      <div style="margin-bottom:32px"><h1 style="font-size:28px;font-weight:700;margin-bottom:4px">Dashboard</h1><p style="color:var(--fg2);font-size:14px">Overview of your WhatsApp sales bot</p></div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:16px;margin-bottom:28px">
+        <div class="card" style="display:flex;align-items:center;gap:16px"><div class="si" style="background:var(--acg)"><i class="fa-solid fa-comments" style="color:var(--ac)"></i></div><div><div style="font-size:24px;font-weight:700;font-family:'Space Grotesk'" id="stMsg">0</div><div style="font-size:12px;color:var(--fg2)">Messages this month</div></div></div>
+        <div class="card" style="display:flex;align-items:center;gap:16px"><div class="si" style="background:rgba(6,182,212,.15)"><i class="fa-solid fa-box" style="color:var(--info)"></i></div><div><div style="font-size:24px;font-weight:700;font-family:'Space Grotesk'" id="stProd">0</div><div style="font-size:12px;color:var(--fg2)">Active products</div></div></div>
+        <div class="card" style="display:flex;align-items:center;gap:16px"><div class="si" style="background:rgba(245,158,11,.15)"><i class="fa-solid fa-bolt" style="color:var(--warn)"></i></div><div><div style="font-size:24px;font-weight:700;font-family:'Space Grotesk'" id="stBot">Off</div><div style="font-size:12px;color:var(--fg2)">Bot status</div></div></div>
+        <div class="card" style="display:flex;align-items:center;gap:16px"><div class="si" style="background:rgba(168,85,247,.15)"><i class="fa-solid fa-chart-line" style="color:#a855f7"></i></div><div><div style="font-size:24px;font-weight:700;font-family:'Space Grotesk'" id="stRate">0%</div><div style="font-size:12px;color:var(--fg2)">Reply rate</div></div></div>
+      </div>
+      <div class="card" style="margin-bottom:28px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><span style="font-size:14px;font-weight:600">Message Usage</span><span style="font-size:13px;color:var(--fg2)" id="usLbl">0 / 50 messages</span></div>
+        <div class="pbar"><div class="pfill" id="usBar" style="width:0%"></div></div>
+        <p style="font-size:12px;color:var(--fg3);margin-top:8px" id="usHint">Upgrade your plan for more messages</p>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+        <div class="card"><h3 style="font-size:16px;font-weight:600;margin-bottom:16px">Quick Actions</h3>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <button class="btn-s" style="text-align:left;display:flex;align-items:center;gap:10px" onclick="sv('vProd',qsa('[data-v=vProd]'))"><i class="fa-solid fa-plus" style="color:var(--ac)"></i> Add New Product</button>
+            <button class="btn-s" style="text-align:left;display:flex;align-items:center;gap:10px" onclick="sv('vWA',qsa('[data-v=vWA]'))"><i class="fa-brands fa-whatsapp" style="color:var(--ac)"></i> Connect WhatsApp</button>
+            <button class="btn-s" style="text-align:left;display:flex;align-items:center;gap:10px" onclick="sv('vPlan',qsa('[data-v=vPlan]'))"><i class="fa-solid fa-crown" style="color:var(--ac)"></i> Upgrade Plan</button>
+          </div>
+        </div>
+        <div class="card"><h3 style="font-size:16px;font-weight:600;margin-bottom:16px">Recent Chats</h3><div id="recentChats"><p style="color:var(--fg3);font-size:13px">No chats yet. Connect WhatsApp to start.</p></div></div>
+      </div>
+    </div>
+
+    <!-- PRODUCTS -->
+    <div class="av" id="vProd" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:28px;flex-wrap:wrap;gap:12px">
+        <div><h1 style="font-size:28px;font-weight:700;margin-bottom:4px">Products</h1><p style="color:var(--fg2);font-size:14px">Manage your product catalog</p></div>
+        <button class="btn-p" onclick="openProdModal()"><i class="fa-solid fa-plus" style="margin-right:6px"></i> Add Product</button>
+      </div>
+      <div id="prodGrid"></div>
+    </div>
+
+    <!-- CHATS -->
+    <div class="av" id="vChat" style="display:none">
+      <div style="margin-bottom:28px"><h1 style="font-size:28px;font-weight:700;margin-bottom:4px">Chats</h1><p style="color:var(--fg2);font-size:14px">Customer conversations handled by your bot</p></div>
+      <div id="chatLayout" style="display:grid;grid-template-columns:300px 1fr;gap:0;border:1px solid var(--brd);border-radius:14px;overflow:hidden;height:calc(100vh - 180px);min-height:500px">
+        <div style="background:var(--bg2);border-right:1px solid var(--brd);overflow-y:auto;display:flex;flex-direction:column" id="chatListWrap">
+          <div style="padding:16px;border-bottom:1px solid var(--brd)"><input type="text" class="fi" placeholder="Search chats..." style="padding:10px 14px;font-size:13px" id="chatSearch" oninput="renderChatList()"></div>
+          <div id="chatList" style="flex:1;overflow-y:auto"></div>
+        </div>
+        <div style="display:flex;flex-direction:column" id="chatDetail">
+          <div style="flex:1;display:flex;align-items:center;justify-content:center"><div style="text-align:center"><i class="fa-solid fa-comments" style="font-size:48px;color:var(--fg3);margin-bottom:16px;display:block"></i><p style="color:var(--fg2);font-size:14px">Select a conversation to view</p></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- WHATSAPP -->
+    <div class="av" id="vWA" style="display:none">
+      <div style="margin-bottom:28px"><h1 style="font-size:28px;font-weight:700;margin-bottom:4px">WhatsApp Connection</h1><p style="color:var(--fg2);font-size:14px">Connect your business WhatsApp number</p></div>
+      <div style="max-width:600px">
+        <div class="card" style="margin-bottom:20px" id="waCard">
+          <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px">
+            <div style="width:56px;height:56px;background:var(--acg);border-radius:14px;display:flex;align-items:center;justify-content:center"><i class="fa-brands fa-whatsapp" style="color:var(--ac);font-size:28px"></i></div>
+            <div><h3 style="font-size:18px;font-weight:600">Connection Status</h3><div style="display:flex;align-items:center;gap:6px;margin-top:2px"><span class="sd off" id="waDot"></span><span style="font-size:13px;color:var(--fg2)" id="waTxt">Not connected</span></div></div>
+          </div>
+          <div id="waConn">
+            <div style="background:var(--bg);border-radius:10px;padding:20px;margin-bottom:20px">
+              <label class="fl">WhatsApp Business Number</label>
+              <div style="display:flex;gap:8px"><span style="background:var(--bg2);border:1px solid var(--brd);border-radius:10px;padding:12px 14px;color:var(--fg2);font-size:14px;white-space:nowrap">+233</span><input type="tel" class="fi" id="waPhone" placeholder="24 123 4567" style="flex:1"></div>
+            </div>
+            <button class="btn-p" style="width:100%" onclick="connectWA()"><i class="fa-solid fa-link" style="margin-right:8px"></i> Connect WhatsApp</button>
+          </div>
+          <div id="waOk" style="display:none">
+            <div style="background:var(--bg);border-radius:10px;padding:16px;margin-bottom:16px"><div style="font-size:12px;color:var(--fg3);margin-bottom:4px">Connected Number</div><div style="font-size:16px;font-weight:600" id="waNum">+233 24 123 4567</div></div>
+            <div style="display:flex;gap:10px"><button class="btn-s" style="flex:1" onclick="testBot()">Test Bot</button><button class="btn-d" style="flex:1" onclick="disconnectWA()">Disconnect</button></div>
+          </div>
+        </div>
+        <div class="card">
+          <h3 style="font-size:16px;font-weight:600;margin-bottom:16px">Setup Checklist</h3>
+          <div style="display:flex;flex-direction:column;gap:12px" id="checklist"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PLANS -->
+    <div class="av" id="vPlan" style="display:none">
+      <div style="margin-bottom:28px"><h1 style="font-size:28px;font-weight:700;margin-bottom:4px">Subscription</h1><p style="color:var(--fg2);font-size:14px">Manage your plan and billing</p></div>
+      <div class="card" style="margin-bottom:24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px" id="curPlanCard">
+        <div><div style="font-size:12px;color:var(--fg3);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Current Plan</div><div style="display:flex;align-items:center;gap:10px"><span style="font-size:22px;font-weight:700;font-family:'Space Grotesk'" id="curPlanName">Free Trial</span><span class="badge b-wrn" id="curPlanBadge">Trial</span></div></div>
+        <div style="text-align:right"><div style="font-size:13px;color:var(--fg2)" id="planExp">Expires in 7 days</div><div style="font-size:13px;color:var(--fg2);margin-top:2px" id="planMsg">0 / 50 messages used</div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px;max-width:900px">
+        <div class="card" style="text-align:center" id="pcS"><div style="font-size:14px;color:var(--fg2);font-weight:600;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">Starter</div><div style="font-size:38px;font-weight:700;font-family:'Space Grotesk';margin-bottom:4px">Free</div><div style="color:var(--fg3);font-size:13px;margin-bottom:20px">7-day trial</div><ul style="text-align:left;list-style:none;display:flex;flex-direction:column;gap:8px;margin-bottom:24px"><li style="font-size:13px;color:var(--fg2);display:flex;align-items:center;gap:8px"><i class="fa-solid fa-check" style="color:var(--ac);font-size:11px"></i> 50 messages/month</li><li style="font-size:13px;color:var(--fg2);display:flex;align-items:center;gap:8px"><i class="fa-solid fa-check" style="color:var(--ac);font-size:11px"></i> 10 products max</li><li style="font-size:13px;color:var(--fg2);display:flex;align-items:center;gap:8px"><i class="fa-solid fa-check" style="color:var(--ac);font-size:11px"></i> Basic AI text only</li></ul><button class="btn-s" style="width:100%" disabled id="pbS">Current Plan</button></div>
+        <div class="card ph" style="text-align:center" id="pcB"><div style="font-size:14px;color:var(--ac);font-weight:600;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">Business</div><div style="font-size:38px;font-weight:700;font-family:'Space Grotesk';margin-bottom:4px">GH₵ 99<span style="font-size:15px;font-weight:400;color:var(--fg2)">/mo</span></div><div style="color:var(--fg3);font-size:13px;margin-bottom:20px">Best for growing stores</div><ul style="text-align:left;list-style:none;display:flex;flex-direction:column;gap:8px;margin-bottom:24px"><li style="font-size:13px;color:var(--fg2);display:flex;align-items:center;gap:8px"><i class="fa-solid fa-check" style="color:var(--ac);font-size:11px"></i> 2,000 messages/month</li><li style="font-size:13px;color:var(--fg2);display:flex;align-items:center;gap:8px"><i class="fa-solid fa-check" style="color:var(--ac);font-size:11px"></i> Unlimited products</li><li style="font-size:13px;color:var(--fg2);display:flex;align-items:center;gap:8px"><i class="fa-solid fa-check" style="color:var(--ac);font-size:11px"></i> AI sends product images</li><li style="font-size:13px;color:var(--fg2);display:flex;align-items:center;gap:8px"><i class="fa-solid fa-check" style="color:var(--ac);font-size:11px"></i> Chat analytics</li></ul><button class="btn-p" style="width:100%" id="pbB" onclick="openPay('business')">Upgrade to Business</button></div>
+        <div class="card" style="text-align:center" id="pcE"><div style="font-size:14px;color:var(--fg2);font-weight:600;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">Enterprise</div><div style="font-size:38px;font-weight:700;font-family:'Space Grotesk';margin-bottom:4px">GH₵ 249<span style="font-size:15px;font-weight:400;color:var(--fg2)">/mo</span></div><div style="color:var(--fg3);font-size:13px;margin-bottom:20px">High-volume stores</div><ul style="text-align:left;list-style:none;display:flex;flex-direction:column;gap:8px;margin-bottom:24px"><li style="font-size:13px;color:var(--fg2);display:flex;align-items:center;gap:8px"><i class="fa-solid fa-check" style="color:var(--ac);font-size:11px"></i> Unlimited messages</li><li style="font-size:13px;color:var(--fg2);display:flex;align-items:center;gap:8px"><i class="fa-solid fa-check" style="color:var(--ac);font-size:11px"></i> Unlimited products</li><li style="font-size:13px;color:var(--fg2);display:flex;align-items:center;gap:8px"><i class="fa-solid fa-check" style="color:var(--ac);font-size:11px"></i> Advanced AI training</li><li style="font-size:13px;color:var(--fg2);display:flex;align-items:center;gap:8px"><i class="fa-solid fa-check" style="color:var(--ac);font-size:11px"></i> Priority support</li></ul><button class="btn-s" style="width:100%" id="pbE" onclick="openPay('enterprise')">Upgrade to Enterprise</button></div>
+      </div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div class="av" id="vSet" style="display:none">
+      <div style="margin-bottom:28px"><h1 style="font-size:28px;font-weight:700;margin-bottom:4px">Settings</h1><p style="color:var(--fg2);font-size:14px">Manage your account and bot configuration</p></div>
+      <div style="max-width:600px">
+        <div class="card" style="margin-bottom:20px">
+          <h3 style="font-size:16px;font-weight:600;margin-bottom:20px">Business Profile</h3>
+          <div style="margin-bottom:20px"><label class="fl">Business Name</label><input type="text" class="fi" id="setBiz" placeholder="Your business name"></div>
+          <div style="margin-bottom:20px"><label class="fl">Email</label><input type="email" class="fi" id="setEmail" disabled style="opacity:.6;cursor:not-allowed"></div>
+          <div style="margin-bottom:20px"><label class="fl">Bot Greeting Message</label><textarea class="fi" id="setGreet" rows="3" placeholder="Hello! Welcome to our store. How can I help you today?" style="resize:vertical"></textarea></div>
+          <div style="margin-bottom:20px"><label class="fl">Bot Tone</label><select class="fi" id="setTone" style="cursor:pointer"><option value="friendly">Friendly and casual</option><option value="professional">Professional and formal</option><option value="energetic">Energetic and exciting</option></select></div>
+          <button class="btn-p" onclick="saveSet()">Save Changes</button>
+        </div>
+        <div class="card" style="border-color:rgba(239,68,68,.2)">
+          <h3 style="font-size:16px;font-weight:600;margin-bottom:8px;color:var(--red)">Danger Zone</h3>
+          <p style="font-size:13px;color:var(--fg2);margin-bottom:16px">Permanently delete your account and all data. This cannot be undone.</p>
+          <button class="btn-d" onclick="toast('Account deletion is disabled in demo mode','err')">Delete Account</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- BOT TEST -->
+    <div class="av" id="vBotTest" style="display:none">
+      <div style="margin-bottom:28px;display:flex;align-items:center;gap:12px">
+        <button class="btn-g" onclick="sv('vWA',qsa('[data-v=vWA]'))"><i class="fa-solid fa-arrow-left" style="margin-right:6px"></i> Back</button>
+        <div><h1 style="font-size:28px;font-weight:700;margin-bottom:4px">Test Your Bot</h1><p style="color:var(--fg2);font-size:14px">Simulate a customer conversation</p></div>
+      </div>
+      <div style="max-width:480px">
+        <div style="background:var(--card);border:1px solid var(--brd);border-radius:16px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.4)">
+          <div class="wh"><div style="width:36px;height:36px;background:rgba(255,255,255,.15);border-radius:50%;display:flex;align-items:center;justify-content:center"><i class="fa-solid fa-robot" style="font-size:14px;color:#fff"></i></div><div><div style="font-size:14px;font-weight:600;color:#fff" id="tbName">Your Bot</div><div style="font-size:11px;color:rgba(255,255,255,.6)">online</div></div></div>
+          <div class="wb" id="tbBody" style="min-height:350px"></div>
+          <div class="wi"><input type="text" id="tbInput" placeholder="Type as a customer..." style="flex:1;background:transparent;border:none;color:#fff;font-size:14px;outline:none;font-family:'DM Sans'"><button onclick="sendTB()" style="background:none;border:none;cursor:pointer"><i class="fa-solid fa-paper-plane" style="color:var(--ac);font-size:18px"></i></button></div>
+        </div>
+        <p style="text-align:center;font-size:12px;color:var(--fg3);margin-top:12px">This simulates how your bot responds to real customers on WhatsApp</p>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- PRODUCT MODAL -->
+<div class="mo" id="prodMo">
+  <div class="md">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px"><h2 style="font-size:20px;font-weight:700" id="pmTitle">Add Product</h2><button class="btn-g" onclick="closePM()" style="padding:6px 8px" aria-label="Close"><i class="fa-solid fa-xmark" style="font-size:18px"></i></button></div>
+    <input type="hidden" id="pmId">
+    <div style="margin-bottom:18px"><label class="fl">Product Name</label><input type="text" class="fi" id="pmName" placeholder="e.g. Wireless Earbuds"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px"><div><label class="fl">Price (GH₵)</label><input type="number" class="fi" id="pmPrice" placeholder="0.00" min="0" step="0.01"></div><div><label class="fl">Category</label><input type="text" class="fi" id="pmCat" placeholder="e.g. Electronics"></div></div>
+    <div style="margin-bottom:18px"><label class="fl">Description</label><textarea class="fi" id="pmDesc" rows="3" placeholder="Describe your product..." style="resize:vertical"></textarea></div>
+    <div style="margin-bottom:24px">
+      <label class="fl">Product Image</label>
+      <div class="uz" id="upZone" onclick="document.getElementById('pmImg').click()">
+        <div id="upPH"><i class="fa-solid fa-cloud-arrow-up" style="font-size:28px;color:var(--fg3);margin-bottom:8px;display:block"></i><p style="color:var(--fg2);font-size:14px">Click to upload an image</p><p style="color:var(--fg3);font-size:12px;margin-top:4px">JPG, PNG up to 5MB</p></div>
+        <img id="upPV" style="max-height:200px;border-radius:8px;display:none;margin:0 auto">
+      </div>
+      <input type="file" id="pmImg" accept="image/*" style="display:none" onchange="handleImg(event)">
+    </div>
+    <div style="display:flex;gap:10px"><button class="btn-s" style="flex:1" onclick="closePM()">Cancel</button><button class="btn-p" style="flex:1" onclick="saveProd()" id="pmBtn">Add Product</button></div>
+  </div>
+</div>
+
+<!-- PAYMENT MODAL -->
+<div class="mo" id="payMo">
+  <div class="md" style="max-width:440px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px"><h2 style="font-size:20px;font-weight:700">Complete Payment</h2><button class="btn-g" onclick="closePay()" style="padding:6px 8px" aria-label="Close"><i class="fa-solid fa-xmark" style="font-size:18px"></i></button></div>
+    <div style="background:var(--bg);border-radius:10px;padding:20px;margin-bottom:20px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:10px"><span style="color:var(--fg2);font-size:14px">Plan</span><span style="font-weight:600;font-size:14px" id="cpName">Business</span></div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:10px"><span style="color:var(--fg2);font-size:14px">Amount</span><span style="font-weight:700;font-size:18px;color:var(--ac)" id="cpAmt">GH₵ 99.00</span></div>
+      <div style="display:flex;justify-content:space-between"><span style="color:var(--fg2);font-size:14px">Billing</span><span style="font-weight:500;font-size:14px">Monthly</span></div>
+    </div>
+    <div style="margin-bottom:18px"><label class="fl">Card Number</label><input type="text" class="fi" id="pyCard" placeholder="4123 4567 8901 2345" maxlength="19"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px"><div><label class="fl">Expiry</label><input type="text" class="fi" id="pyExp" placeholder="MM/YY" maxlength="5"></div><div><label class="fl">CVV</label><input type="text" class="fi" id="pyCvv" placeholder="123" maxlength="3"></div></div>
+    <div style="margin-bottom:24px"><label class="fl">Email</label><input type="email" class="fi" id="pyEmail" placeholder="you@example.com"></div>
+    <button class="btn-p" style="width:100%;padding:14px" onclick="doPay()" id="pyBtn"><i class="fa-solid fa-lock" style="margin-right:8px"></i> Pay Now</button>
+    <p style="text-align:center;font-size:12px;color:var(--fg3);margin-top:12px"><i class="fa-solid fa-shield-halved" style="margin-right:4px"></i> Secured by Paystack</p>
+  </div>
+</div>
+
+<!-- DELETE CONFIRM -->
+<div class="mo" id="delMo">
+  <div class="md" style="max-width:400px;text-align:center">
+    <i class="fa-solid fa-triangle-exclamation" style="font-size:40px;color:var(--warn);margin-bottom:16px"></i>
+    <h2 style="font-size:20px;font-weight:700;margin-bottom:8px">Delete Product?</h2>
+    <p style="color:var(--fg2);font-size:14px;margin-bottom:24px">This product will be permanently removed from your catalog.</p>
+    <div style="display:flex;gap:10px"><button class="btn-s" style="flex:1" onclick="closeDel()">Cancel</button><button class="btn-d" style="flex:1" onclick="confirmDel()">Delete</button></div>
+  </div>
+</div>
+
+<!-- WEBHOOK SIMULATION MODAL -->
+<div class="mo" id="whMo">
+  <div class="md" style="max-width:480px">
+    <h2 style="font-size:20px;font-weight:700;margin-bottom:16px"><i class="fa-solid fa-satellite-dish" style="color:var(--ac);margin-right:8px"></i> Paystack Webhook Received</h2>
+    <div style="background:var(--bg);border-radius:10px;padding:16px;margin-bottom:16px;font-family:monospace;font-size:12px;color:var(--fg2);line-height:1.8;overflow-x:auto">
+      <div style="color:var(--fg3)">POST /api/webhook/paystack</div>
+      <div style="margin-top:8px">{</div>
+      <div>&nbsp;&nbsp;"event": "charge.success",</div>
+      <div>&nbsp;&nbsp;"data": {</div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;"reference": "ref_<span id="whRef"></span>",</div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;"amount": <span id="whAmt"></span>,</div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;"status": "success"</div>
+      <div>&nbsp;&nbsp;}</div>
+      <div>}</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px"><span class="sd wrn"></span><span style="font-size:13px;color:var(--fg2)">Updating Supabase subscription table...</span></div>
+    <div id="whSteps" style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px"></div>
+    <button class="btn-p" style="width:100%" id="whDone" onclick="closeWH()" disabled>Done</button>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   STATE — mirrors Supabase tables exactly
+   ============================================================ */
+const S = {
+  user: null,          // users table row
+  products: [],        // products table rows
+  subscription: null,  // subscriptions table row
+  messages: [],        // messages table rows
+  waConnected: false,
+  waNumber: '',
+  editProdId: null,
+  delProdId: null,
+  selChat: null,
+  msgCount: 0,
+  upImg: null,
+  payPlan: null
+};
+
+const PLANS = {
+  starter:    { name:'Free Trial', price:0,   msgs:50,      prods:10,        badge:'b-wrn', btext:'Trial' },
+  business:   { name:'Business',   price:99,  msgs:2000,    prods:Infinity,  badge:'b-on',  btext:'Active' },
+  enterprise: { name:'Enterprise', price:249, msgs:Infinity, prods:Infinity,  badge:'b-on',  btext:'Active' }
+};
+
+/* ============================================================
+   HELPERS
+   ============================================================ */
+function qsa(s){ return document.querySelector(s) }
+function qsaa(s){ return document.querySelectorAll(s) }
+function toast(m,t='ok'){ const c=qsa('#TC'),d=document.createElement('div');d.className='toast toast-'+t;const ic={ok:'fa-circle-check',err:'fa-circle-xmark',info:'fa-circle-info'};d.innerHTML=`<i class="fa-solid ${ic[t]||ic.info}"></i> ${m}`;c.appendChild(d);setTimeout(()=>d.remove(),3500) }
+function nav(id){ qsaa('.page').forEach(p=>p.classList.remove('active')); setTimeout(()=>qsa('#'+id).classList.add('active'),30) }
+function sv(id,link){
+  qsaa('.av').forEach(v=>v.style.display='none');
+  const t=qsa('#'+id); if(t){t.style.display='block';t.style.animation='none';t.offsetHeight;t.style.animation='pgIn .3s ease forwards'}
+  qsaa('.sl').forEach(l=>l.classList.remove('on'));
+  if(link) link.classList.add('on');
+  qsa('#sidebar').classList.remove('open');
+  // Refresh each view
+  if(id==='vDash') refreshDash();
+  if(id==='vProd') renderProds();
+  if(id==='vChat') renderChatList();
+  if(id==='vWA') refreshWA();
+  if(id==='vPlan') refreshPlan();
+  if(id==='vSet') refreshSet();
+}
+function tm(e,el){ const r=el.getBoundingClientRect();el.style.setProperty('--mx',((e.clientX-r.left)/r.width*100)+'%');el.style.setProperty('--my',((e.clientY-r.top)/r.height*100)+'%') }
+function isExpired(){ return S.subscription && S.subscription.status==='expired' }
+function isSubActive(){ return S.subscription && S.subscription.status==='active' && !isExpired() }
+function planKey(){ return S.subscription?.plan || 'starter' }
+function planData(){ return PLANS[planKey()] }
+function canBotRun(){ return S.waConnected && isSubActive() && S.products.length>0 }
+function fmtDate(d){ return new Date(d).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}) }
+
+/* ============================================================
+   AUTH — sign up / login / logout
+   ============================================================ */
+function doSignup(){
+  const biz=qsa('#sBiz').value.trim(), email=qsa('#sEmail').value.trim(), pass=qsa('#sPass').value;
+  if(!biz){toast('Enter your business name','err');return}
+  if(!email||!email.includes('@')){toast('Enter a valid email','err');return}
+  if(pass.length<6){toast('Password must be at least 6 characters','err');return}
+  S.user={id:'u_'+Date.now(),email,business_name:biz,greeting:'Hello! Welcome to '+biz+'. How can I help you today?',tone:'friendly',created_at:new Date().toISOString()};
+  S.subscription={user_id:S.user.id,plan:'starter',status:'active',expiry_date:new Date(Date.now()+7*864e5).toISOString()};
+  S.msgCount=0;
+  toast('Account created successfully!');
+  enterApp();
+}
+function doLogin(){
+  const email=qsa('#lEmail').value.trim(), pass=qsa('#lPass').value;
+  if(!email){toast('Enter your email','err');return}
+  if(!pass){toast('Enter your password','err');return}
+  S.user={id:'u_'+Date.now(),email,business_name:email.split('@')[0]+"'s Store",greeting:'Hello! Welcome! How can I help you today?',tone:'friendly',created_at:new Date().toISOString()};
+  S.subscription={user_id:S.user.id,plan:'starter',status:'active',expiry_date:new Date(Date.now()+7*864e5).toISOString()};
+  S.msgCount=0;
+  toast('Welcome back!');
+  enterApp();
+}
+function doLogout(){
+  S.user=null;S.products=[];S.messages=[];S.waConnected=false;S.subscription=null;S.msgCount=0;
+  nav('pgLand');toast('Signed out','info');
+}
+function enterApp(){
+  loadSamples();
+  nav('pgApp');
+  sv('vDash',qsa('[data-v=vDash]'));
+  updateSidebar();
+}
+
+function updateSidebar(){
+  if(!S.user)return;
+  qsa('#uName').textContent=S.user.business_name;
+  qsa('#uEmail').textContent=S.user.email;
+  qsa('#uAvatar').textContent=S.user.business_name.charAt(0).toUpperCase();
+}
+
+/* ============================================================
+   SAMPLE DATA — mirrors Supabase tables
+   ============================================================ */
+function loadSamples(){
+  if(S.products.length)return;
+  S.products=[
+    {id:'p1',user_id:S.user?.id,name:'SoundPods Pro',price:120,category:'Electronics',description:'Premium wireless earbuds with active noise cancellation and 24-hour battery life.',image_url:'https://picsum.photos/seed/earbuds1/400/400.jpg'},
+    {id:'p2',user_id:S.user?.id,name:'BassKing X1',price:85,category:'Electronics',description:'Deep bass wireless earphones with sweat-resistant design, perfect for workouts.',image_url:'https://picsum.photos/seed/earbuds2/400/400.jpg'},
+    {id:'p3',user_id:S.user?.id,name:'AirLite Basic',price:45,category:'Electronics',description:'Affordable wireless earbuds with clear sound and comfortable fit.',image_url:'https://picsum.photos/seed/earbuds3/400/400.jpg'},
+    {id:'p4',user_id:S.user?.id,name:'PhoneCase Premium',price:35,category:'Accessories',description:'Shock-absorbing phone case with matte finish for all phone models.',image_url:'https://picsum.photos/seed/phonecase1/400/400.jpg'},
+    {id:'p5',user_id:S.user?.id,name:'Fast Charger 65W',price:55,category:'Electronics',description:'USB-C fast charger compatible with all modern phones and laptops.',image_url:'https://picsum.photos/seed/charger1/400/400.jpg'},
+  ];
+  S.messages=[
+    {id:'m1',business_id:S.user?.id,customer_number:'+233 20 555 1234',message:'Hello, do you have wireless earbuds?',reply:'Hi Ama! Yes, we have 3 options:\n\n1. SoundPods Pro — GH₵ 120\n2. BassKing X1 — GH₵ 85\n3. AirLite Basic — GH₵ 45\n\nWhich one interests you?',replied_at:new Date(Date.now()-12e5).toISOString()},
+    {id:'m2',business_id:S.user?.id,customer_number:'+233 20 555 1234',message:'Tell me more about the SoundPods Pro',reply:'The SoundPods Pro is our best seller! Features:\n\n- Active noise cancellation\n- 24-hour battery\n- IPX5 water resistant\n- Premium sound\n\nWant to order?',replied_at:new Date(Date.now()-6e5).toISOString()},
+    {id:'m3',business_id:S.user?.id,customer_number:'+233 27 888 5678',message:'What is your cheapest phone case?',reply:'Our PhoneCase Premium is just GH₵ 35! Shock-absorbing with matte finish, available for all models. Want to order?',replied_at:new Date(Date.now()-9e5).toISOString()},
+    {id:'m4',business_id:S.user?.id,customer_number:'+233 50 333 9012',message:'Do you deliver to Kumasi?',reply:'Yes we deliver nationwide! We have the Fast Charger 65W for GH₵ 55 — works with all phones and laptops. Would you like one?',replied_at:new Date(Date.now()-36e5).toISOString()},
+    {id:'m5',business_id:S.user?.id,customer_number:'+233 20 555 1234',message:'I will take the SoundPods Pro',reply:'Great choice! That\'s GH₵ 120 for SoundPods Pro. Please share your delivery address and we\'ll get it sorted right away.',replied_at:new Date(Date.now()-3e5).toISOString()},
+  ];
+}
+
+/* ============================================================
+   DASHBOARD — stats, usage, quick actions, recent chats, expiry banner
+   ============================================================ */
+function refreshDash(){
+  const pl=planData(), used=S.msgCount, lim=pl.msgs;
+  const pct=lim===Infinity?0:Math.min((used/lim)*100,100);
+
+  qsa('#stMsg').textContent=used;
+  qsa('#stProd').textContent=S.products.length;
+
+  // Bot status: shows exactly when bot can/can't run
+  const botEl=qsa('#stBot');
+  if(canBotRun()){ botEl.textContent='Active'; botEl.style.color='var(--ac)' }
+  else if(S.waConnected && isExpired()){ botEl.textContent='Expired'; botEl.style.color='var(--red)' }
+  else if(S.waConnected && !isSubActive()){ botEl.textContent='Off'; botEl.style.color='var(--red)' }
+  else { botEl.textContent='Off'; botEl.style.color='var(--fg3)' }
+
+  qsa('#stRate').textContent=S.messages.length>0?'87%':'0%';
+
+  // Usage bar
+  qsa('#usLbl').textContent=lim===Infinity?used+' messages (unlimited)':used+' / '+lim+' messages';
+  const bar=qsa('#usBar'); bar.style.width=pct+'%'; bar.style.background=pct>80?'var(--red)':'var(--ac)';
+  const hint=qsa('#usHint');
+  if(pct>80){hint.textContent='Running low! Upgrade now.';hint.style.color='var(--red)'}
+  else if(planKey()==='starter'){hint.textContent='Upgrade your plan for more messages';hint.style.color='var(--fg3)'}
+  else{hint.textContent='You have plenty of messages remaining';hint.style.color='var(--fg3)'}
+
+  // Expiry banner on dashboard — CRITICAL: shows when expired
+  const banner=qsa('#expBanner');
+  if(isExpired()){
+    banner.innerHTML=`<div class="exp-banner"><i class="fa-solid fa-circle-exclamation" style="color:var(--red);font-size:20px"></i><div style="flex:1"><div style="font-weight:600;font-size:15px;color:var(--red)">Subscription Expired</div><div style="font-size:13px;color:var(--fg2);margin-top:2px">Your bot has been deactivated. Renew your plan to resume selling on WhatsApp.</div></div><button class="btn-p" style="padding:10px 20px;font-size:13px;white-space:nowrap" onclick="sv('vPlan',qsa('[data-v=vPlan]'))">Renew Plan</button></div>`;
+  } else if(planKey()==='starter'){
+    const days=Math.max(0,Math.ceil((new Date(S.subscription.expiry_date)-new Date())/864e5));
+    if(days<=3){
+      banner.innerHTML=`<div class="exp-banner" style="background:linear-gradient(90deg,rgba(245,158,11,.12),rgba(245,158,11,.03));border-color:rgba(245,158,11,.25)"><i class="fa-solid fa-clock" style="color:var(--warn);font-size:20px"></i><div style="flex:1"><div style="font-weight:600;font-size:15px;color:var(--warn)">Trial expires in ${days} day${days!==1?'s':''}</div><div style="font-size:13px;color:var(--fg2);margin-top:2px">Upgrade to keep your bot running after the trial ends.</div></div><button class="btn-p" style="padding:10px 20px;font-size:13px;white-space:nowrap" onclick="sv('vPlan',qsa('[data-v=vPlan]'))">Upgrade Now</button></div>`;
+    } else { banner.innerHTML='' }
+  } else { banner.innerHTML='' }
+
+  // Recent chats (derived from messages table — group by customer_number)
+  const rc=qsa('#recentChats');
+  const grouped={};
+  S.messages.forEach(m=>{ if(!grouped[m.customer_number]) grouped[m.customer_number]={num:m.customer_number,msgs:[],last:m}; grouped[m.customer_number].msgs.push(m); if(m.replied_at>grouped[m.customer_number].last.replied_at) grouped[m.customer_number].last=m });
+  const entries=Object.values(grouped).sort((a,b)=>new Date(b.last.replied_at)-new Date(a.last.replied_at)).slice(0,4);
+  if(!entries.length){ rc.innerHTML='<p style="color:var(--fg3);font-size:13px">No chats yet. Connect WhatsApp to start.</p>' }
+  else { rc.innerHTML=entries.map(e=>{const name=e.num.replace('+233 ','Customer ');const ago=timeAgo(e.last.replied_at);return`<div style="display:flex;align-items:center;gap:10px;padding:8px;border-radius:8px;cursor:pointer;transition:background .15s" onmouseover="this.style.background='rgba(255,255,255,.03)'" onmouseout="this.style.background='transparent'" onclick="sv('vChat',qsa('[data-v=vChat]'))"><div style="width:32px;height:32px;background:var(--acg);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:var(--ac);flex-shrink:0">${name.charAt(0)}</div><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:500">${name}</div><div style="font-size:12px;color:var(--fg3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.last.message}</div></div><span style="font-size:11px;color:var(--fg3);white-space:nowrap">${ago}</span></div>`}).join('') }
+
+  // Chat badge
+  const badge=qsa('#chatBadge');
+  if(S.messages.length>0){badge.style.display='inline';badge.textContent=S.messages.length}else{badge.style.display='none'}
+}
+
+function timeAgo(iso){
+  const s=Math.floor((Date.now()-new Date(iso))/1e3);
+  if(s<60)return 'Just now';if(s<3600)return Math.floor(s/60)+'m ago';if(s<86400)return Math.floor(s/3600)+'h ago';return Math.floor(s/86400)+'d ago';
+}
+
+/* ============================================================
+   PRODUCTS — full CRUD with image upload
+   ============================================================ */
+function renderProds(){
+  const g=qsa('#prodGrid');
+  if(!S.products.length){
+    g.innerHTML=`<div style="text-align:center;padding:60px 20px"><i class="fa-solid fa-box-open" style="font-size:48px;color:var(--fg3);margin-bottom:16px;display:block"></i><p style="color:var(--fg2);font-size:15px;margin-bottom:16px">No products yet. Add your first product to get started.</p><button class="btn-p" onclick="openProdModal()">Add First Product</button></div>`;
+    return;
+  }
+  // Enforce product limit for starter plan
+  const limit=planData().prods;
+  g.innerHTML=S.products.map(p=>`
+    <div class="card" style="padding:0;overflow:hidden">
+      <div style="height:180px;background:var(--bg2);overflow:hidden;position:relative">
+        ${p.image_url?`<img src="${p.image_url}" alt="${p.name}" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div style="display:none;width:100%;height:100%;align-items:center;justify-content:center"><i class="fa-solid fa-image" style="font-size:32px;color:var(--fg3)"></i></div>`:`<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center"><i class="fa-solid fa-image" style="font-size:32px;color:var(--fg3)"></i></div>`}
+        <span style="position:absolute;top:10px;right:10px;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);color:var(--fg);font-size:11px;padding:3px 8px;border-radius:6px">${p.category||'General'}</span>
+      </div>
+      <div style="padding:16px">
+        <h4 style="font-size:16px;font-weight:600;margin-bottom:4px">${p.name}</h4>
+        <p style="font-size:13px;color:var(--fg2);margin-bottom:10px;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${p.description||'No description'}</p>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:20px;font-weight:700;color:var(--ac);font-family:'Space Grotesk'">GH₵ ${p.price.toFixed(2)}</span>
+          <div style="display:flex;gap:6px">
+            <button class="btn-g" style="padding:6px 8px" onclick="editProd('${p.id}')" title="Edit" aria-label="Edit"><i class="fa-solid fa-pen" style="font-size:13px"></i></button>
+            <button class="btn-g" style="padding:6px 8px;color:var(--red)" onclick="delProd('${p.id}')" title="Delete" aria-label="Delete"><i class="fa-solid fa-trash" style="font-size:13px"></i></button>
+          </div>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function openProdModal(id){
+  S.editProdId=id||null; S.upImg=null;
+  qsa('#pmId').value=id||'';
+  qsa('#pmTitle').textContent=id?'Edit Product':'Add Product';
+  qsa('#pmBtn').textContent=id?'Save Changes':'Add Product';
+  if(id){
+    const p=S.products.find(x=>x.id===id); if(!p)return;
+    qsa('#pmName').value=p.name; qsa('#pmPrice').value=p.price; qsa('#pmCat').value=p.category||''; qsa('#pmDesc').value=p.description||'';
+    if(p.image_url){qsa('#upPV').src=p.image_url;qsa('#upPV').style.display='block';qsa('#upPH').style.display='none';qsa('#upZone').classList.add('has-img');S.upImg=p.image_url}
+    else{resetUpload()}
+  } else { qsa('#pmName').value='';qsa('#pmPrice').value='';qsa('#pmCat').value='';qsa('#pmDesc').value='';resetUpload() }
+  qsa('#prodMo').classList.add('open');
+}
+function closePM(){ qsa('#prodMo').classList.remove('open');S.editProdId=null }
+function resetUpload(){ qsa('#upPV').style.display='none';qsa('#upPH').style.display='block';qsa('#upZone').classList.remove('has-img') }
+
+function handleImg(e){
+  const f=e.target.files[0]; if(!f)return;
+  if(f.size>5*1024*1024){toast('Image must be under 5MB','err');return}
+  const r=new FileReader();
+  r.onload=function(ev){ S.upImg=ev.target.result; qsa('#upPV').src=ev.target.result; qsa('#upPV').style.display='block'; qsa('#upPH').style.display='none'; qsa('#upZone').classList.add('has-img') };
+  r.readAsDataURL(f);
+}
+
+function saveProd(){
+  const name=qsa('#pmName').value.trim(), price=parseFloat(qsa('#pmPrice').value), cat=qsa('#pmCat').value.trim(), desc=qsa('#pmDesc').value.trim();
+  if(!name){toast('Enter a product name','err');return}
+  if(isNaN(price)||price<=0){toast('Enter a valid price','err');return}
+  // Enforce product limit for starter
+  if(!S.editProdId && planData().prods!==Infinity && S.products.length>=planData().prods){
+    toast('Product limit reached. Upgrade your plan for unlimited products.','err');return;
+  }
+  if(S.editProdId){
+    const i=S.products.findIndex(p=>p.id===S.editProdId);
+    if(i!==-1) S.products[i]={...S.products[i],name,price,category:cat,description:desc,image_url:S.upImg||S.products[i].image_url};
+    toast('Product updated!');
+  } else {
+    S.products.push({id:'p_'+Date.now(),user_id:S.user?.id,name,price,category:cat,description:desc,image_url:S.upImg||'https://picsum.photos/seed/'+Date.now()+'/400/400.jpg'});
+    toast('Product added!');
+  }
+  closePM(); renderProds(); refreshDash();
+}
+
+function editProd(id){ openProdModal(id) }
+function delProd(id){ S.delProdId=id; qsa('#delMo').classList.add('open') }
+function closeDel(){ qsa('#delMo').classList.remove('open');S.delProdId=null }
+function confirmDel(){ S.products=S.products.filter(p=>p.id!==S.delProdId); closeDel(); renderProds(); refreshDash(); toast('Product deleted','info') }
+
+/* ============================================================
+   CHATS — derived from messages table, grouped by customer
+   ============================================================ */
+function renderChatList(){
+  const search=(qsa('#chatSearch')?.value||'').toLowerCase();
+  const grouped={};
+  S.messages.forEach(m=>{ if(!grouped[m.customer_number]) grouped[m.customer_number]={num:m.customer_number,msgs:[]}; grouped[m.customer_number].msgs.push(m) });
+  let entries=Object.entries(grouped).map(([num,data])=>({num,msgs:data.sort((a,b)=>new Date(a.replied_at)-new Date(b.replied_at)),last:data[data.length-1]}));
+  entries.sort((a,b)=>new Date(b.last.replied_at)-new Date(a.last.replied_at));
+  if(search) entries=entries.filter(e=>e.num.toLowerCase().includes(search)||e.last.message.toLowerCase().includes(search));
+
+  const list=qsa('#chatList');
+  if(!entries.length){ list.innerHTML='<div style="padding:40px 20px;text-align:center"><p style="color:var(--fg3);font-size:13px">'+(S.messages.length?'No matching chats':'No conversations yet')+'</p></div>'; return }
+  list.innerHTML=entries.map(e=>{
+    const name=e.num.replace('+233 ','Customer ');
+    return`<div onclick="selChat('${e.num}')" style="padding:14px 16px;cursor:pointer;border-bottom:1px solid var(--brd);transition:background .15s" onmouseover="this.style.background='rgba(255,255,255,.02)'" onmouseout="this.style.background='transparent'"><div style="display:flex;align-items:center;gap:10px"><div style="width:38px;height:38px;background:var(--acg);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;color:var(--ac);flex-shrink:0">${name.charAt(0)}</div><div style="flex:1;min-width:0"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px"><span style="font-size:14px;font-weight:600">${name}</span><span style="font-size:11px;color:var(--fg3)">${timeAgo(e.last.replied_at)}</span></div><div style="font-size:12px;color:var(--fg3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px">${e.last.message}</div></div></div></div>`
+  }).join('');
+}
+
+function selChat(num){
+  S.selChat=num;
+  const msgs=S.messages.filter(m=>m.customer_number===num).sort((a,b)=>new Date(a.replied_at)-new Date(b.replied_at));
+  const name=num.replace('+233 ','Customer ');
+  const detail=qsa('#chatDetail');
+  detail.innerHTML=`
+    <div style="background:var(--bg2);padding:14px 20px;border-bottom:1px solid var(--brd);display:flex;align-items:center;gap:12px">
+      <div style="width:36px;height:36px;background:var(--acg);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:var(--ac)">${name.charAt(0)}</div>
+      <div style="flex:1"><div style="font-size:14px;font-weight:600">${name}</div><div style="font-size:11px;color:var(--fg3)">${num}</div></div>
+      <span class="badge b-on"><i class="fa-solid fa-robot" style="font-size:10px;margin-right:3px"></i> Bot</span>
+    </div>
+    <div style="flex:1;padding:20px;overflow-y:auto;background:#0b141a;display:flex;flex-direction:column;gap:10px">
+      ${msgs.map(m=>`
+        <div style="display:flex;flex-direction:column;align-items:flex-start">
+          <div class="cbi" style="white-space:pre-line">${escHtml(m.message)}</div>
+          <span style="font-size:10px;color:rgba(255,255,255,.3);margin-top:4px;padding:0 4px">${new Date(m.replied_at).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}</span>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end">
+          <div class="cbo" style="white-space:pre-line">${escHtml(m.reply)}</div>
+          <span style="font-size:10px;color:rgba(255,255,255,.3);margin-top:4px;padding:0 4px">${new Date(m.replied_at).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})} · Bot</span>
+        </div>
+      `).join('')}
+    </div>`;
+  // Highlight selected in list
+  qsaa('#chatList > div').forEach(el=>{el.style.background=el.getAttribute('onclick')?.includes(num)?'var(--acg)':'transparent'});
+}
+function escHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+
+/* ============================================================
+   WHATSAPP — connect/disconnect, checklist, test bot
+   ============================================================ */
+function refreshWA(){
+  const dot=qsa('#waDot'),txt=qsa('#waTxt'),conn=qsa('#waConn'),ok=qsa('#waOk');
+  if(S.waConnected){
+    dot.className='sd on'; txt.textContent='Connected'; txt.style.color='var(--ac)';
+    conn.style.display='none'; ok.style.display='block'; qsa('#waNum').textContent=S.waNumber;
+  } else {
+    dot.className='sd off'; txt.textContent='Not connected'; txt.style.color='var(--fg2)';
+    conn.style.display='block'; ok.style.display='none';
+  }
+  // Checklist
+  const checks=[
+    {done:!!S.user, label:'Create a BotSeller account'},
+    {done:isSubActive(), label:'Subscribe to an active plan'},
+    {done:S.products.length>0, label:'Add at least one product'},
+    {done:S.waConnected, label:'Connect WhatsApp number'}
+  ];
+  qsa('#checklist').innerHTML=checks.map(c=>`
+    <div style="display:flex;align-items:center;gap:10px">
+      <div style="width:24px;height:24px;border-radius:50%;border:2px solid ${c.done?'var(--ac)':'var(--brd)'};background:${c.done?'var(--acg)':'transparent'};display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        ${c.done?'<i class="fa-solid fa-check" style="font-size:11px;color:var(--ac)"></i>':''}
+      </div>
+      <span style="font-size:14px;color:${c.done?'var(--fg)':'var(--fg2)'}">${c.label}</span>
+    </div>`).join('');
+}
+
+function connectWA(){
+  const phone=qsa('#waPhone').value.trim();
+  if(!phone){toast('Enter your WhatsApp number','err');return}
+  // MUST have active subscription
+  if(!isSubActive()){toast('Your subscription is not active. Please subscribe to a plan first.','err');sv('vPlan',qsa('[data-v=vPlan]'));return}
+  // MUST have products
+  if(S.products.length===0){toast('Add at least one product before connecting WhatsApp.','err');sv('vProd',qsa('[data-v=vProd]'));return}
+  S.waConnected=true; S.waNumber='+233 '+phone;
+  toast('WhatsApp connected successfully!');
+  refreshWA(); refreshDash();
+}
+
+function disconnectWA(){
+  S.waConnected=false; S.waNumber='';
+  toast('WhatsApp disconnected','info');
+  refreshWA(); refreshDash();
+}
+
+/* ============================================================
+   BOT TEST — simulates full WhatsApp → Supabase → OpenAI → reply flow
+   ============================================================ */
+function testBot(){
+  sv('vBotTest',null);
+  qsaa('.sl').forEach(l=>l.classList.remove('on'));
+  qsa('[data-v=vWA]')?.classList.add('on');
+  qsa('#tbBody').innerHTML='';
+  qsa('#tbName').textContent=S.user?.business_name||'Your Bot';
+
+  // Check if bot can actually run — if not, show blocked message
+  if(!canBotRun()){
+    let reason='';
+    if(!S.waConnected) reason='WhatsApp is not connected. Go to the WhatsApp tab and connect your number.';
+    else if(isExpired()) reason='Your subscription has expired. Please renew your plan to reactivate the bot.';
+    else if(!isSubActive()) reason='Your subscription is not active. Please subscribe to a plan.';
+    else if(S.products.length===0) reason='No products found. Add products before testing the bot.';
+    const body=qsa('#tbBody');
+    body.innerHTML=`<div style="text-align:center;padding:40px 20px"><i class="fa-solid fa-ban" style="font-size:40px;color:var(--red);margin-bottom:16px;display:block"></i><p style="color:var(--red);font-size:15px;font-weight:600;margin-bottom:8px">Bot Cannot Run</p><p style="color:var(--fg2);font-size:13px">${reason}</p></div>`;
+    return;
+  }
+
+  // Send greeting
+  setTimeout(()=>addBotBubble(S.user?.greeting||'Hello! How can I help you today?'),500);
+  setTimeout(()=>qsa('#tbInput').focus(),600);
+}
+
+function addBotBubble(text){
+  const body=qsa('#tbBody'),w=document.createElement('div');
+  w.style.cssText='display:flex;flex-direction:column;align-items:flex-end;animation:pgIn .3s ease forwards';
+  w.innerHTML=`<div class="cbo" style="white-space:pre-line">${text}</div><span style="font-size:10px;color:rgba(255,255,255,.3);margin-top:4px;padding:0 4px">Bot</span>`;
+  body.appendChild(w); body.scrollTop=body.scrollHeight;
+}
+function addCustBubble(text){
+  const body=qsa('#tbBody'),w=document.createElement('div');
+  w.style.cssText='display:flex;flex-direction:column;align-items:flex-start;animation:pgIn .3s ease forwards';
+  w.innerHTML=`<div class="cbi" style="white-space:pre-line;background:#1a2731;border:1px solid #2a3e4a">${escHtml(text)}</div><span style="font-size:10px;color:rgba(255,255,255,.3);margin-top:4px;padding:0 4px">You</span>`;
+  body.appendChild(w); body.scrollTop=body.scrollHeight;
+}
+
+function sendTB(){
+  const inp=qsa('#tbInput'), text=inp.value.trim(); if(!text)return;
+  inp.value=''; addCustBubble(text);
+
+  // Check message limit
+  const lim=planData().msgs;
+  if(lim!==Infinity && S.msgCount>=lim){
+    setTimeout(()=>{
+      addBotBubble('Sorry, I\'ve reached the monthly message limit for your plan. Please upgrade to continue.');
+      toast('Message limit reached! Upgrade your plan.','err');
+    },600);
+    return;
+  }
+
+  // Check if subscription just expired (edge case during chat)
+  if(isExpired()){
+    setTimeout(()=>addBotBubble('I\'m sorry, the bot has been deactivated because your subscription expired. Please renew to continue.'),600);
+    return;
+  }
+
+  S.msgCount++;
+
+  // Show typing indicator
+  const body=qsa('#tbBody'),typing=document.createElement('div');
+  typing.id='typInd'; typing.style.cssText='display:flex;flex-direction:column;align-items:flex-end';
+  typing.innerHTML=`<div style="background:var(--ac3);border-radius:16px 16px 4px 16px;padding:12px 18px;display:flex;gap:4px;align-items:center"><span style="width:6px;height:6px;background:rgba(255,255,255,.5);border-radius:50%;animation:blink 1.2s infinite 0s"></span><span style="width:6px;height:6px;background:rgba(255,255,255,.5);border-radius:50%;animation:blink 1.2s infinite .2s"></span><span style="width:6px;height:6px;background:rgba(255,255,255,.5);border-radius:50%;animation:blink 1.2s infinite .4s"></span></div>`;
+  body.appendChild(typing); body.scrollTop=body.scrollHeight;
+
+  // Simulate: Supabase Edge Function → OpenAI → Reply (800-1600ms)
+  setTimeout(()=>{
+    const ti=document.getElementById('typInd'); if(ti)ti.remove();
+    const reply=genAIReply(text);
+    addBotBubble(reply.text);
+
+    // If reply includes image (Business/Enterprise only), send product image
+    if(reply.image && planKey()!=='starter'){
+      setTimeout(()=>{
+        const iw=document.createElement('div');
+        iw.style.cssText='display:flex;flex-direction:column;align-items:flex-end;animation:pgIn .3s ease forwards';
+        iw.innerHTML=`<img src="${reply.image}" style="max-width:200px;border-radius:10px;border:1px solid var(--brd)" onerror="this.style.display='none'"><span style="font-size:11px;color:rgba(255,255,255,.4);margin-top:4px">${reply.imgName} — GH₵ ${reply.imgPrice}</span>`;
+        body.appendChild(iw); body.scrollTop=body.scrollHeight;
+      },400);
+    }
+
+    // Save to messages table (Supabase insert simulation)
+    S.messages.push({
+      id:'m_'+Date.now(), business_id:S.user?.id, customer_number:'+233 20 555 1234',
+      message:text, reply:reply.text, replied_at:new Date().toISOString()
+    });
+  }, 800+Math.random()*800);
+}
+
+// AI response generator — simulates OpenAI with product data from Supabase
+function genAIReply(input){
+  const biz=S.user?.business_name||'our store';
+  const low=input.toLowerCase();
+  const prods=S.products;
+
+  // Build product list text
+  function prodList(max=5){
+    return prods.slice(0,max).map((p,i)=>`${i+1}. ${p.name} — GH₵ ${p.price}`).join('\n');
+  }
+
+  let text='',image=null,imgName='',imgPrice=0;
+
+  // Classify intent
+  if(/^(hi|hello|hey|good morning|good afternoon|good evening|yo|sup|hiya)/.test(low)){
+    text=`Welcome to ${biz}! I'm here to help.\n\nHere's what we have:\n${prodList()}\n\nWhat are you looking for?`;
+  } else if(/price|how much|cost|cheap|expensive|afford|budget/.test(low)){
+    text=`Here are our current prices:\n\n${prodList()}\n\nWhich one fits your budget? I can recommend the best value!`;
+    // Suggest a product image
+    const match=prods.find(p=>low.includes(p.name.toLowerCase()));
+    if(match){image=match.image_url;imgName=match.name;imgPrice=match.price}
+    else{const rp=prods[Math.floor(Math.random()*prods.length)];image=rp.image_url;imgName=rp.name;imgPrice=rp.price}
+  } else if(/discount|deal|offer|reduce|lower|negotiate|barter/.test(low)){
+    text=`I appreciate you asking! We do offer discounts on bulk orders.\n\nBuy 2+ items and get 10% off. Which products interest you?\n\n${prodList(3)}`;
+  } else if(/delivery|ship|deliver|kumasi|accra|tamale|location/.test(low)){
+    text=`Yes, we deliver nationwide across Ghana! Delivery is usually within 1-3 business days depending on your location.\n\nIs there anything from our catalog you'd like to order?\n\n${prodList(3)}`;
+  } else if(/thank|thanks|bye|goodbye|okay|ok|great|nice/.test(low)){
+    text=`You're welcome! If you need anything else, just message me anytime. I'm always here to help at ${biz}. Have a great day!`;
+  } else if(/yes|want|order|buy|take|get|i'll|i will|interested/.test(low)){
+    const match=prods.find(p=>low.includes(p.name.toLowerCase()));
+    if(match){
+      text=`Excellent choice! ${match.name} for GH₵ ${match.price}.\n\nPlease share your delivery location and phone number, and we'll get your order processed right away.`;
+      image=match.image_url;imgName=match.name;imgPrice=match.price;
+    } else {
+      text=`Great! Which specific product would you like to order?\n\n${prodList()}\n\nJust let me know and I'll sort it out.`;
+      const rp=prods[Math.floor(Math.random()*prods.length)];image=rp.image_url;imgName=rp.name;imgPrice=rp.price;
+    }
+  } else {
+    // General fallback — always suggests products (OpenAI rule: "always suggest products when relevant")
+    text=`Thanks for your message! Let me help you with that.\n\nHere's what we offer at ${biz}:\n${prodList()}\n\nLet me know if anything catches your eye — I'm happy to give you more details!`;
+    const rp=prods[Math.floor(Math.random()*prods.length)];image=rp.image_url;imgName=rp.name;imgPrice=rp.price;
+  }
+
+  // Starter plan: strip image capability
+  if(planKey()==='starter'){ image=null }
+
+  return {text,image,imgName,imgPrice};
+}
+
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&document.activeElement?.id==='tbInput'){e.preventDefault();sendTB()}});
+
+/* ============================================================
+   SUBSCRIPTION — plans view, Paystack checkout, webhook simulation
+   ============================================================ */
+function refreshPlan(){
+  if(!S.subscription)return;
+  const pl=planData();
+  qsa('#curPlanName').textContent=pl.name;
+  const badge=qsa('#curPlanBadge'); badge.className='badge '+pl.badge; badge.textContent=pl.btext;
+
+  if(planKey()==='starter'){
+    const days=Math.max(0,Math.ceil((new Date(S.subscription.expiry_date)-new Date())/864e5));
+    qsa('#planExp').textContent=isExpired()?'Expired on '+fmtDate(S.subscription.expiry_date):'Expires in '+days+' day'+(days!==1?'s':'');
+    if(isExpired()) qsa('#planExp').style.color='var(--red)';
+    else qsa('#planExp').style.color='var(--fg2)';
+  } else {
+    qsa('#planExp').textContent='Renews monthly'; qsa('#planExp').style.color='var(--fg2)';
+  }
+
+  const used=S.msgCount, lim=pl.msgs;
+  qsa('#planMsg').textContent=lim===Infinity?used+' messages (unlimited)':used+' / '+lim+' messages used';
+
+  // Update buttons
+  ['starter','business','enterprise'].forEach(k=>{
+    const btn=qsa('#pb'+k[0].toUpperCase());
+    if(planKey()===k){btn.disabled=true;btn.textContent='Current Plan';btn.className=planKey()===k&&k==='business'?'btn-p':'btn-s';btn.style.width='100%'}
+    else{btn.disabled=false;btn.textContent=k==='starter'?'Downgrade':'Upgrade to '+PLANS[k].name;btn.className=k==='business'?'btn-p':'btn-s';btn.style.width='100%'}
+  });
+}
+
+function openPay(pk){
+  if(planKey()===pk){toast('Already on this plan','info');return}
+  S.payPlan=pk;
+  const pl=PLANS[pk];
+  qsa('#cpName').textContent=pl.name;
+  qsa('#cpAmt').textContent='GH₵ '+pl.price.toFixed(2);
+  qsa('#pyEmail').value=S.user?.email||'';
+  qsa('#payMo').dataset.plan=pk;
+  qsa('#payMo').classList.add('open');
+}
+function closePay(){ qsa('#payMo').classList.remove('open') }
+
+function doPay(){
+  const card=qsa('#pyCard').value.trim(), exp=qsa('#pyExp').value.trim(), cvv=qsa('#pyCvv').value.trim(), email=qsa('#pyEmail').value.trim();
+  if(!card||card.replace(/\s/g,'').length<13){toast('Enter a valid card number','err');return}
+  if(!exp||!exp.includes('/')){toast('Enter a valid expiry date','err');return}
+  if(!cvv||cvv.length<3){toast('Enter a valid CVV','err');return}
+  if(!email||!email.includes('@')){toast('Enter a valid email','err');return}
+
+  const btn=qsa('#pyBtn'); btn.disabled=true; btn.innerHTML='<i class="fa-solid fa-spinner fa-spin" style="margin-right:8px"></i> Processing...';
+
+  // Simulate Paystack processing → then webhook
+  setTimeout(()=>{
+    closePay();
+    btn.disabled=false; btn.innerHTML='<i class="fa-solid fa-lock" style="margin-right:8px"></i> Pay Now';
+    qsa('#pyCard').value=''; qsa('#pyExp').value=''; qsa('#pyCvv').value='';
+    showWebhook(S.payPlan);
+  },2000);
+}
+
+/* Webhook simulation — shows the full flow: Paystack → Webhook → Supabase update */
+function showWebhook(pk){
+  const pl=PLANS[pk];
+  qsa('#whRef').textContent=Math.random().toString(36).substring(2,10);
+  qsa('#whAmt').textContent=pl.price*100; // Paystack sends amount in pesewas
+  qsa('#whSteps').innerHTML='';
+  qsa('#whDone').disabled=true;
+  qsa('#whMo').classList.add('open');
+
+  const steps=[
+    {text:'Webhook received from Paystack', delay:600},
+    {text:'Verifying payment signature...', delay:1200},
+    {text:'Payment verified successfully', delay:1800},
+    {text:'Updating subscriptions table in Supabase...', delay:2400},
+    {text:'Setting plan = '+pk+', status = active', delay:3000},
+    {text:'Setting expiry_date = '+fmtDate(new Date(Date.now()+30*864e5)), delay:3600},
+    {text:'Bot activation signal sent', delay:4200}
+  ];
+
+  steps.forEach(s=>{
+    setTimeout(()=>{
+      const div=document.createElement('div');
+      div.style.cssText='display:flex;align-items:center;gap:8px;animation:pgIn .3s ease forwards';
+      div.innerHTML=`<i class="fa-solid fa-check" style="color:var(--ac);font-size:12px"></i><span style="font-size:13px;color:var(--fg2)">${s.text}</span>`;
+      qsa('#whSteps').appendChild(div);
+    },s.delay);
+  });
+
+  // After all steps, actually update the subscription
+  setTimeout(()=>{
+    S.subscription={
+      user_id:S.user?.id, plan:pk, status:'active',
+      expiry_date:new Date(Date.now()+30*864e5).toISOString()
+    };
+    qsa('#whDone').disabled=false;
+  },4800);
+}
+
+function closeWH(){
+  qsa('#whMo').classList.remove('open');
+  toast('Payment successful! Upgraded to '+planData().name);
+  refreshPlan(); refreshDash(); refreshWA();
+  // If WhatsApp was connected but bot was off due to expiry, hint to reconnect
+  if(!S.waConnected && S.products.length>0){
+    setTimeout(()=>toast('Your bot is ready! Connect WhatsApp to activate.','info'),1500);
+  }
+}
+
+// Card formatting
+qsa('#pyCard')?.addEventListener('input',function(e){let v=e.target.value.replace(/\D/g,'').substring(0,16);e.target.value=v.replace(/(.{4})/g,'$1 ').trim()});
+qsa('#pyExp')?.addEventListener('input',function(e){let v=e.target.value.replace(/\D/g,'').substring(0,4);if(v.length>2)v=v.substring(0,2)+'/'+v.substring(2);e.target.value=v});
+
+/* ============================================================
+   SETTINGS — profile, greeting, tone
+   ============================================================ */
+function refreshSet(){
+  if(!S.user)return;
+  qsa('#setBiz').value=S.user.business_name;
+  qsa('#setEmail').value=S.user.email;
+  qsa('#setGreet').value=S.user.greeting||'';
+  qsa('#setTone').value=S.user.tone||'friendly';
+}
+function saveSet(){
+  const biz=qsa('#setBiz').value.trim();
+  if(!biz){toast('Business name cannot be empty','err');return}
+  S.user.business_name=biz;
+  S.user.greeting=qsa('#setGreet').value.trim();
+  S.user.tone=qsa('#setTone').value;
+  updateSidebar(); toast('Settings saved!');
+}
+
+/* ============================================================
+   MODAL CLICK-OUTSIDE CLOSE
+   ============================================================ */
+qsaa('.mo').forEach(o=>o.addEventListener('click',function(e){if(e.target===this)this.classList.remove('open')}));
+
+/* ============================================================
+   HERO CHAT ANIMATION
+   ============================================================ */
+function animHero(){
+  const msgs=[
+    {from:'cust',text:'Do you have wireless earbuds?'},
+    {from:'bot',text:'Yes! We have 3 options:\n\n1. SoundPods Pro — GH₵ 120\n2. BassKing X1 — GH₵ 85\n3. AirLite Basic — GH₵ 45\n\nWhich one interests you?'},
+    {from:'cust',text:'The SoundPods Pro looks nice. Can I get a discount for 2?'},
+    {from:'bot',text:'Absolutely! 2 SoundPods Pro = GH₵ 220 (save GH₵ 20). Want me to reserve them for you?'}
+  ];
+  const body=qsa('#heroChat');
+  body.innerHTML='';
+  msgs.forEach((m,i)=>{
+    const w=document.createElement('div');
+    w.style.cssText=`display:flex;flex-direction:column;${m.from==='cust'?'align-items:flex-start':'align-items:flex-end'};opacity:0;transform:translateY(15px);transition:all .5s ease`;
+    w.innerHTML=`<div class="${m.from==='cust'?'cbi':'cbo'}" style="white-space:pre-line">${m.text}</div>`;
+    body.appendChild(w);
+    setTimeout(()=>{w.style.opacity='1';w.style.transform='translateY(0)'},600+i*700);
+  });
+}
+
+/* ============================================================
+   SCROLL ANIMATIONS
+   ============================================================ */
+function initScrollAnim(){
+  const obs=new IntersectionObserver(entries=>{entries.forEach(e=>{if(e.isIntersecting){e.target.style.opacity='1';e.target.style.transform='translateY(0)';obs.unobserve(e.target)}})},{threshold:.1});
+  qsaa('.card.fc, section .card').forEach(el=>{el.style.opacity='0';el.style.transform='translateY(20px)';el.style.transition='all .6s ease';obs.observe(el)});
+}
+
+/* ============================================================
+   RESPONSIVE CHAT LAYOUT
+   ============================================================ */
+function handleResize(){
+  const cl=qsa('#chatLayout'); if(!cl)return;
+  cl.style.gridTemplateColumns=window.innerWidth<768?'1fr':'300px 1fr';
+}
+window.addEventListener('resize',handleResize);
+
+/* ============================================================
+   INIT
+   ============================================================ */
+(function init(){
+  animHero();
+  setTimeout(initScrollAnim,100);
+  setTimeout(handleResize,200);
+  nav('pgLand');
+})();
+</script>
+</body>
+</html>"

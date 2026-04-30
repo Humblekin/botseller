@@ -1,0 +1,5 @@
+# For detailed configuration reference, visit https://supabase.com/docs/reference/cli/config
+project_id = "YOUR_PROJECT_ID"
+
+[functions.whatsapp-webhook]
+verify_jwt = false
