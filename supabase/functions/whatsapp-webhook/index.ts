@@ -67,15 +67,20 @@ Deno.serve(async (req) => {
 
   try {
     // 1. Find the business that owns this WhatsApp number
-    const { data: waConn } = await supabase
+    // We normalize the incoming waId (remove + if present)
+    const normalizedWaId = waId?.replace(/\+/g, '') || ''
+    const phoneId = value.metadata?.phone_number_id
+
+    // Try finding by number or by phone_id
+    let { data: waConn } = await supabase
       .from('whatsapp_connections')
-      .select('user_id, status, phone_id, access_token')
-      .eq('phone_number', '+' + waId)
+      .select('user_id, status, phone_id, access_token, phone_number')
+      .or(`phone_number.eq.+${normalizedWaId},phone_id.eq.${phoneId}`)
       .eq('status', 'connected')
-      .single()
+      .maybeSingle()
 
     if (!waConn) {
-      console.log('No connected business for phone:', waId)
+      console.log('No connected business for phone:', waId, 'or ID:', phoneId)
       return new Response(JSON.stringify({ success: true }), { status: 200 })
     }
 

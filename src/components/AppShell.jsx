@@ -1014,11 +1014,12 @@ function WhatsAppView({ waConnected, waNumber, products, subscription, isExpired
     initiateWAConnect(phone.trim(), phoneId.trim(), accessToken.trim())
   }
 
-  const checks = [
-    { done: !!subscription, label: 'Create a BotSeller account' },
-    { done: isSubActive(), label: 'Subscribe to an active plan' },
-    { done: products.length > 0, label: 'Add at least one product' },
-    { done: waConnected, label: 'Connect WhatsApp number' }
+  const tracker = [
+    { done: true, label: 'Account Created', desc: 'Your BotSeller profile is ready.' },
+    { done: products.length > 0, label: 'Products Added', desc: 'Add items for the AI to sell.' },
+    { done: waConnected || !!phone, label: 'Number Submitted', desc: 'Submit the number you want to use.' },
+    { done: waConnected, label: 'Meta Registration', desc: 'Our team is verifying your number with Meta.' },
+    { done: waConnected && isSubActive(), label: 'AI Activated', desc: 'Your bot is live and responding!' }
   ]
 
   return (
@@ -1087,14 +1088,33 @@ function WhatsAppView({ waConnected, waNumber, products, subscription, isExpired
           )}
         </div>
         <div className="card">
-          <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 16 }}>Setup Checklist</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {checks.map((c, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{ width: 24, height: 24, borderRadius: '50%', border: `2px solid ${c.done ? 'var(--ac)' : 'var(--brd)'}`, background: c.done ? 'var(--acg)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  {c.done && <i className="fa-solid fa-check" style={{ fontSize: 11, color: 'var(--ac)' }} />}
+          <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 20 }}>Onboarding Status</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            {tracker.map((c, i) => (
+              <div key={i} style={{ display: 'flex', gap: 14 }}>
+                <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <div style={{ 
+                    width: 24, 
+                    height: 24, 
+                    borderRadius: '50%', 
+                    border: `2px solid ${c.done ? 'var(--ac)' : 'var(--brd)'}`, 
+                    background: c.done ? 'var(--acg)' : 'transparent', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center', 
+                    zIndex: 2,
+                    transition: 'all 0.3s ease'
+                  }}>
+                    {c.done ? <i className="fa-solid fa-check" style={{ fontSize: 11, color: 'var(--ac)' }} /> : <span style={{ fontSize: 10, color: 'var(--fg3)', fontWeight: 600 }}>{i + 1}</span>}
+                  </div>
+                  {i < tracker.length - 1 && (
+                    <div style={{ width: 2, height: 'calc(100% + 20px)', background: tracker[i+1].done ? 'var(--ac)' : 'var(--brd)', position: 'absolute', top: 24, zIndex: 1 }} />
+                  )}
                 </div>
-                <span style={{ fontSize: 14, color: c.done ? 'var(--fg)' : 'var(--fg2)' }}>{c.label}</span>
+                <div style={{ opacity: c.done ? 1 : 0.6 }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: c.done ? 'var(--fg)' : 'var(--fg2)' }}>{c.label}</div>
+                  <div style={{ fontSize: 11, color: 'var(--fg3)', marginTop: 2 }}>{c.desc}</div>
+                </div>
               </div>
             ))}
           </div>

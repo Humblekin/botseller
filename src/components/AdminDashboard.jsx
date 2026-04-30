@@ -12,6 +12,7 @@ export default function AdminDashboard({ user, profile, onLogout, toast, standal
   const [allSubs, setAllSubs] = useState([])
   const [allMsgs, setAllMsgs] = useState([])
   const [allProds, setAllProds] = useState([])
+  const [allWa, setAllWa] = useState([])
   const [manageUserId, setManageUserId] = useState(null)
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
@@ -28,13 +29,14 @@ export default function AdminDashboard({ user, profile, onLogout, toast, standal
         profileAdmin: profile?.is_admin
       })
 
-      const [usersRes, paymentsRes, subsRes, msgsRes, prodsRes, msgCountRes] = await Promise.all([
+      const [usersRes, paymentsRes, subsRes, msgsRes, prodsRes, msgCountRes, waRes] = await Promise.all([
         supabase.from('profiles').select('id, email, business_name, is_admin, created_at').order('created_at', { ascending: false }),
         supabase.from('payments').select('*').order('created_at', { ascending: false }),
         supabase.from('subscriptions').select('*').order('created_at', { ascending: false }),
         supabase.from('messages').select('business_id, role'),
         supabase.from('products').select('user_id'),
-        supabase.from('messages').select('id', { count: 'exact', head: true })
+        supabase.from('messages').select('id', { count: 'exact', head: true }),
+        supabase.from('whatsapp_connections').select('*')
       ])
 
       if (usersRes.error) throw new Error(`Profiles: ${usersRes.error.message}`)
@@ -44,6 +46,7 @@ export default function AdminDashboard({ user, profile, onLogout, toast, standal
       setAllSubs(subsRes.data || [])
       setAllMsgs(msgsRes.data || [])
       setAllProds(prodsRes.data || [])
+      setAllWa(waRes.data || [])
 
       setStats({
         totalUsers: usersRes.data?.length || 0,
@@ -180,6 +183,7 @@ export default function AdminDashboard({ user, profile, onLogout, toast, standal
               <thead>
                 <tr style={{ color: 'var(--fg3)', fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                   <th style={{ textAlign: 'left', padding: '0 12px' }}>Business</th>
+                  <th style={{ textAlign: 'left', padding: '0 12px' }}>WhatsApp</th>
                   <th style={{ textAlign: 'left', padding: '0 12px' }}>Subscription</th>
                   <th style={{ textAlign: 'left', padding: '0 12px' }}>Activity</th>
                   <th style={{ textAlign: 'right', padding: '0 12px' }}>Actions</th>
@@ -188,6 +192,7 @@ export default function AdminDashboard({ user, profile, onLogout, toast, standal
               <tbody>
                 {filteredUsers.map(u => {
                   const sub = allSubs.find(s => s.user_id === u.id)
+                  const wa = allWa.find(w => w.user_id === u.id)
                   const msgCount = getMsgCount(u.id)
                   const isActive = sub?.status === 'active'
                   return (
@@ -202,6 +207,16 @@ export default function AdminDashboard({ user, profile, onLogout, toast, standal
                             <div style={{ fontSize: 12, color: 'var(--fg3)' }}>{u.email}</div>
                           </div>
                         </div>
+                      </td>
+                      <td style={{ padding: '16px 12px' }}>
+                        {wa ? (
+                          <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <span className="badge b-on" style={{ fontSize: 10, alignSelf: 'flex-start' }}>Connected</span>
+                            <span style={{ fontSize: 12, fontWeight: 500, marginTop: 4 }}>{wa.phone_number}</span>
+                          </div>
+                        ) : (
+                          <span className="badge b-off" style={{ fontSize: 10 }}>Not Connected</span>
+                        )}
                       </td>
                       <td style={{ padding: '16px 12px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
