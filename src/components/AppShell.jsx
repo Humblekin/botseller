@@ -1039,6 +1039,17 @@ function WhatsAppView({ waConnected, waNumber, products, subscription, isExpired
           {!waConnected ? (
             <div>
               <div style={{ background: 'var(--bg)', borderRadius: 10, padding: 20, marginBottom: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div style={{ background: 'rgba(37, 211, 102, 0.1)', border: '1px solid rgba(37, 211, 102, 0.3)', borderRadius: 10, padding: 16, marginBottom: 8 }}>
+                  <h4 style={{ fontSize: 14, fontWeight: 700, color: 'var(--ac)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <i className="fa-solid fa-circle-info" /> Important Instructions
+                  </h4>
+                  <ul style={{ fontSize: 12, color: 'var(--fg2)', paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <li>We recommend using a <b>dedicated number</b> for your bot (a separate SIM card).</li>
+                    <li>If you use your existing number, you must <b>delete the account from the WhatsApp app</b> on your phone before connecting.</li>
+                    <li>Once connected, you will manage all your customer chats directly from the <b>Live Chat</b> tab in this dashboard.</li>
+                  </ul>
+                </div>
+
                 <div>
                   <label className="fl">Your WhatsApp Business Number</label>
                   <input type="tel" className="fi" value={phone} onChange={e => setPhone(e.target.value.replace(/\D/g, '').substring(0, 10))} placeholder="0241234567" />
