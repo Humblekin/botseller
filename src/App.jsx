@@ -21,6 +21,11 @@ function App() {
   }, [])
 
   useEffect(() => {
+    // Basic routing for Meta verification
+    if (window.location.pathname === '/privacy') {
+      setPage('pgPrivacy')
+    }
+
     const initAuth = async () => {
       try {
         const { data: { session }, error: sessionError } = await supabase.auth.getSession()
