@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 
 export default function PublicChat() {
   const [biz, setBiz] = useState(null)
+  const [settings, setSettings] = useState(null)
   const [products, setProducts] = useState([])
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
@@ -17,7 +18,7 @@ export default function PublicChat() {
     localStorage.setItem('bs_session_id', sessionId.current)
     fetchData()
     
-    const channel = supabase.channel('public_chat_realtime')
+    const channel = supabase.channel('public_chat_vnext')
       .on('postgres_changes', { 
         event: 'INSERT', 
         schema: 'public', 
@@ -25,10 +26,7 @@ export default function PublicChat() {
         filter: `conversation_id=eq.${sessionId.current}`
       }, payload => {
         setMessages(prev => {
-          const isDup = prev.some(m => 
-            m.id === payload.new.id || 
-            (m.tempId && payload.new.metadata && payload.new.metadata.tempId === m.tempId)
-          )
+          const isDup = prev.some(m => m.id === payload.new.id)
           if (isDup) return prev
           return [...prev, payload.new]
         })
@@ -45,17 +43,19 @@ export default function PublicChat() {
   async function fetchData() {
     if (!slug) { setLoading(false); return }
     try {
-      const { data: p, error } = await supabase.from('profiles').select('*').eq('slug', slug).maybeSingle()
-      if (error || !p) { setLoading(false); return }
+      const { data: p } = await supabase.from('profiles').select('*').eq('slug', slug).maybeSingle()
+      if (!p) { setLoading(false); return }
       setBiz(p)
 
-      const [prods, msgs] = await Promise.all([
+      const [prods, msgs, sets] = await Promise.all([
         supabase.from('products').select('*').eq('user_id', p.id),
-        supabase.from('messages').select('*').eq('conversation_id', sessionId.current).order('created_at', { ascending: true })
+        supabase.from('messages').select('*').eq('conversation_id', sessionId.current).order('created_at', { ascending: true }),
+        supabase.from('bot_settings').select('*').eq('user_id', p.id).maybeSingle()
       ])
 
       setProducts(prods.data || [])
       setMessages(msgs.data || [])
+      setSettings(sets.data)
     } catch (err) {
       console.error('Fetch error:', err)
     } finally {
@@ -63,15 +63,30 @@ export default function PublicChat() {
     }
   }
 
-  function getLocalReply(text) {
-    const low = text.toLowerCase()
-    const bizName = biz?.business_name || 'our store'
-    const prods = products.length > 0 
-      ? products.map((p, i) => `${i + 1}. ${p.name} — GH₵ ${p.price}`).join('\n')
-      : "We're currently updating our catalog."
-    
-    if (/hi|hello|hey|yo/.test(low)) return `Hello! Welcome to ${bizName}. 😊 How can I help you today?\n\nHere's our menu:\n${prods}`
-    return `Thanks for your message! I'm the AI assistant for ${bizName}. Here is our current product list:\n\n${prods}`
+  // --- THE GENIUS BRAIN (Direct Groq Fallback) ---
+  async function callGeniusAI(userText) {
+    // If the user has a key in settings, use it. Otherwise, this might fail unless we have a master key.
+    const apiKey = settings?.groq_api_key || 'gsk_YOUR_MASTER_KEY_HERE' 
+    const systemPrompt = settings?.custom_instructions || `You are a professional AI assistant for ${biz.business_name}.`
+    const productList = products.map(p => `- ${p.name}: GH₵ ${p.price} (${p.description || ''})`).join('\n')
+
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'llama3-8b-8192',
+        messages: [
+          { role: 'system', content: `${systemPrompt}\n\nOur Products:\n${productList}\n\nInstructions:\n- Be conversational and helpful.\n- Use emojis.\n- If they want to order, confirm the items and price.\n- Focus on the industry: ${biz.industry}.` },
+          { role: 'user', content: userText }
+        ]
+      })
+    })
+    const data = await res.json()
+    if (data.error) throw new Error(data.error.message)
+    return data.choices[0].message.content
   }
 
   async function handleSend() {
@@ -81,48 +96,49 @@ export default function PublicChat() {
     setSending(true)
 
     const tempId = Date.now()
-    const optimisticMsg = { id: tempId, tempId, role: 'user', content: text, created_at: new Date().toISOString() }
-    setMessages(prev => [...prev, optimisticMsg])
+    setMessages(prev => [...prev, { id: tempId, role: 'user', content: text, created_at: new Date().toISOString() }])
 
-    const { data: msg, error: insertError } = await supabase.from('messages').insert({
+    const { data: msg } = await supabase.from('messages').insert({
       business_id: biz.id,
       customer_number: 'web_visitor',
       conversation_id: sessionId.current,
       role: 'user',
       content: text,
-      metadata: { source: 'web_chat', tempId: tempId }
+      metadata: JSON.stringify({ source: 'web_chat_genius' })
     }).select().single()
 
-    if (insertError) {
-      setMessages(prev => prev.filter(m => m.id !== tempId))
-      setSending(false)
-      return
-    }
-
-    setMessages(prev => prev.map(m => m.id === tempId ? msg : m))
-
-    // TRY CLOUD AI
+    // 1. Try Cloud AI Brain (Supabase)
     try {
-      const { data, error: funcError } = await supabase.functions.invoke('ai-chat', {
+      const { error: funcError } = await supabase.functions.invoke('ai-chat', {
         body: { messageId: msg.id }
       })
-      
-      if (funcError) {
-        // If not deployed or secret missing, it will throw here
-        console.warn('AI Brain is NOT deployed or Secret is missing:', funcError)
-        throw funcError
-      }
+      if (funcError) throw funcError
     } catch (err) {
-      // Safety Fallback (What you've been seeing)
-      const reply = getLocalReply(text)
-      await supabase.from('messages').insert({
-        business_id: biz.id,
-        customer_number: 'web_visitor',
-        conversation_id: sessionId.current,
-        role: 'assistant',
-        content: reply,
-        metadata: { source: 'safety_fallback', error: err.message }
-      })
+      console.warn('Cloud AI failed, triggering Direct Genius Brain...', err)
+      // 2. Try Direct Genius Brain (Direct to Groq)
+      try {
+        const replyText = await callGeniusAI(text)
+        await supabase.from('messages').insert({
+          business_id: biz.id,
+          customer_number: 'web_visitor',
+          conversation_id: sessionId.current,
+          role: 'assistant',
+          content: replyText,
+          metadata: JSON.stringify({ source: 'genius_direct' })
+        })
+      } catch (genErr) {
+        console.error('Total AI Failure:', genErr)
+        // Only then do we use the basic greeting
+        const basic = `I'm sorry, my high-intelligence brain is currently rebooting. I can see we have ${products.length} products available like ${products[0]?.name}. How can I help?`
+        await supabase.from('messages').insert({
+          business_id: biz.id,
+          customer_number: 'web_visitor',
+          conversation_id: sessionId.current,
+          role: 'assistant',
+          content: basic,
+          metadata: JSON.stringify({ source: 'basic_fallback' })
+        })
+      }
     } finally {
       setSending(false)
     }
@@ -138,7 +154,10 @@ export default function PublicChat() {
         <header className="pc-header">
           <div className="pc-biz-info">
             <div className="pc-avatar">{biz.business_name.charAt(0)}</div>
-            <div><div className="pc-name">{biz.business_name}</div><div className="pc-status"><span className="sd on" /> <span>AI Powered</span></div></div>
+            <div>
+              <div className="pc-name">{biz.business_name}</div>
+              <div className="pc-status"><span className="sd on" /> <span>AI Assistant Online</span></div>
+            </div>
           </div>
         </header>
 
@@ -146,7 +165,7 @@ export default function PublicChat() {
           <div className="pc-welcome">
             <div className="si" style={{ background: 'var(--acg)', margin: '0 auto 16px' }}><i className="fa-solid fa-robot" style={{ color: 'var(--ac)' }} /></div>
             <h2>Welcome to {biz.business_name}!</h2>
-            <p>I am your official AI sales assistant. How can I help you?</p>
+            <p>I'm your AI shopping assistant. How can I help you today?</p>
           </div>
 
           {messages.map((m, i) => (
@@ -155,7 +174,15 @@ export default function PublicChat() {
               <span className="m-time">{new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · {m.role === 'user' ? 'You' : 'AI Assistant'}</span>
             </div>
           ))}
-          {sending && <div className="m-wrap bot-side"><div className="b-bubble">AI is thinking...</div></div>}
+          {sending && (
+            <div className="m-wrap bot-side">
+              <div className="b-bubble" style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                <span className="dot" style={{ animation: 'blink 1.4s infinite both' }}>.</span>
+                <span className="dot" style={{ animation: 'blink 1.4s infinite both .2s' }}>.</span>
+                <span className="dot" style={{ animation: 'blink 1.4s infinite both .4s' }}>.</span>
+              </div>
+            </div>
+          )}
         </main>
 
         <footer className="pc-footer">
@@ -169,13 +196,13 @@ export default function PublicChat() {
 
       <style>{`
         .pc-container { height: 100vh; display: flex; flex-direction: column; background: var(--bg); color: var(--fg); font-family: 'DM Sans', sans-serif; position: fixed; inset: 0; z-index: 9999; align-items: center; }
-        .pc-main-wrapper { width: 100%; max-width: 600px; height: 100%; display: flex; flex-direction: column; background: var(--bg); border-left: 1px solid var(--brd); border-right: 1px solid var(--brd); position: relative; }
-        .pc-header { padding: 14px 20px; background: rgba(12, 22, 16, 0.95); backdrop-filter: blur(12px); border-bottom: 1px solid var(--brd); display: flex; align-items: center; justify-content: space-between; position: relative; z-index: 10; }
+        .pc-main-wrapper { width: 100%; max-width: 600px; height: 100%; display: flex; flex-direction: column; background: var(--bg); border-left: 1px solid var(--brd); border-right: 1px solid var(--brd); position: relative; box-shadow: 0 0 100px rgba(0,0,0,0.5); }
+        .pc-header { padding: 14px 20px; background: rgba(12, 22, 16, 0.98); backdrop-filter: blur(12px); border-bottom: 1px solid var(--brd); display: flex; align-items: center; justify-content: space-between; z-index: 10; }
         .pc-biz-info { display: flex; align-items: center; gap: 12px; }
         .pc-avatar { width: 38px; height: 38px; background: var(--ac); color: #000; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px; font-family: 'Space Grotesk'; }
         .pc-name { font-weight: 700; font-size: 15px; font-family: 'Space Grotesk'; color: var(--fg); }
         .pc-status { font-size: 11px; color: var(--fg2); display: flex; align-items: center; gap: 6px; margin-top: 1px; }
-        .pc-chat { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 20px; position: relative; z-index: 5; scroll-behavior: smooth; background: #0b141a; }
+        .pc-chat { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 24px; background: #0b141a; }
         .pc-welcome { text-align: center; padding: 40px 20px; color: var(--fg2); max-width: 320px; margin: 0 auto; }
         .pc-welcome h2 { color: var(--fg); margin-bottom: 10px; font-size: 22px; font-family: 'Space Grotesk'; }
         .m-wrap { display: flex; flex-direction: column; max-width: 85%; animation: pgIn 0.3s ease forwards; }
@@ -184,14 +211,15 @@ export default function PublicChat() {
         .m-wrap.bot-side { align-self: flex-start; align-items: flex-start; }
         .b-bubble { background: #262d31 !important; color: var(--fg) !important; border: 1px solid rgba(255,255,255,0.05); border-radius: 18px 18px 18px 4px; padding: 12px 16px; font-size: 15px; line-height: 1.5; white-space: pre-wrap; }
         .m-time { font-size: 10px; color: var(--fg3); margin-top: 6px; padding: 0 4px; }
-        .pc-footer { padding: 12px 16px 20px; background: rgba(12, 22, 16, 0.95); backdrop-filter: blur(12px); border-top: 1px solid var(--brd); position: relative; z-index: 10; }
+        .pc-footer { padding: 12px 16px 20px; background: rgba(12, 22, 16, 0.98); backdrop-filter: blur(12px); border-top: 1px solid var(--brd); z-index: 10; }
         .pc-input-wrap { background: var(--bg3); border: 1px solid var(--brd); border-radius: 14px; display: flex; align-items: center; padding: 5px 5px 5px 16px; gap: 8px; }
         .pc-input-wrap input { flex: 1; background: transparent; border: none; color: #fff; outline: none; font-size: 15px; padding: 10px 0; }
-        .pc-input-wrap button { width: 40px; height: 40px; background: var(--ac); color: #000; border: none; border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .pc-input-wrap button { width: 42px; height: 42px; background: var(--ac); color: #000; border: none; border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
         .pc-powered { text-align: center; font-size: 10px; color: var(--fg3); margin-top: 12px; letter-spacing: 0.5px; text-transform: uppercase; }
         .loader { width: 32px; height: 32px; border: 3px solid var(--brd); border-top-color: var(--ac); border-radius: 50%; animation: spin 0.8s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes pgIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes blink { 0% { opacity: .2; } 20% { opacity: 1; } 100% { opacity: .2; } }
         @media (max-width: 600px) { .pc-main-wrapper { border: none; max-width: 100%; } }
       `}</style>
     </div>
