@@ -18,7 +18,7 @@ export default function PublicChat() {
     localStorage.setItem('bs_session_id', sessionId.current)
     fetchData()
     
-    const channel = supabase.channel('public_chat_vnext')
+    const channel = supabase.channel('public_chat_vnext_stable')
       .on('postgres_changes', { 
         event: 'INSERT', 
         schema: 'public', 
@@ -26,7 +26,12 @@ export default function PublicChat() {
         filter: `conversation_id=eq.${sessionId.current}`
       }, payload => {
         setMessages(prev => {
-          const isDup = prev.some(m => m.id === payload.new.id)
+          // Check for existing ID OR matching tempId in metadata to prevent duplicates
+          const newMeta = payload.new.metadata ? (typeof payload.new.metadata === 'string' ? JSON.parse(payload.new.metadata) : payload.new.metadata) : {}
+          const isDup = prev.some(m => 
+            m.id === payload.new.id || 
+            (m.tempId && newMeta.tempId === m.tempId)
+          )
           if (isDup) return prev
           return [...prev, payload.new]
         })
@@ -63,10 +68,13 @@ export default function PublicChat() {
     }
   }
 
-  // --- THE GENIUS BRAIN (Direct Groq Fallback) ---
   async function callGeniusAI(userText) {
-    // If the user has a key in settings, use it. Otherwise, this might fail unless we have a master key.
-    const apiKey = settings?.groq_api_key || 'gsk_YOUR_MASTER_KEY_HERE' 
+    // Priority: 1. User's key in settings, 2. Master key in .env
+    const apiKey = settings?.groq_api_key || import.meta.env.VITE_GROQ_API_KEY
+    if (!apiKey || apiKey.includes('YOUR_')) {
+      throw new Error("Missing Groq API Key. Please add VITE_GROQ_API_KEY to your .env file.")
+    }
+
     const systemPrompt = settings?.custom_instructions || `You are a professional AI assistant for ${biz.business_name}.`
     const productList = products.map(p => `- ${p.name}: GH₵ ${p.price} (${p.description || ''})`).join('\n')
 
@@ -79,7 +87,7 @@ export default function PublicChat() {
       body: JSON.stringify({
         model: 'llama3-8b-8192',
         messages: [
-          { role: 'system', content: `${systemPrompt}\n\nOur Products:\n${productList}\n\nInstructions:\n- Be conversational and helpful.\n- Use emojis.\n- If they want to order, confirm the items and price.\n- Focus on the industry: ${biz.industry}.` },
+          { role: 'system', content: `${systemPrompt}\n\nOur Products:\n${productList}\n\nInstructions:\n- Be conversational and helpful.\n- Use emojis.\n- If they want to order, confirm the items and price.\n- Industry: ${biz.industry}.` },
           { role: 'user', content: userText }
         ]
       })
@@ -96,7 +104,7 @@ export default function PublicChat() {
     setSending(true)
 
     const tempId = Date.now()
-    setMessages(prev => [...prev, { id: tempId, role: 'user', content: text, created_at: new Date().toISOString() }])
+    setMessages(prev => [...prev, { id: tempId, tempId, role: 'user', content: text, created_at: new Date().toISOString() }])
 
     const { data: msg } = await supabase.from('messages').insert({
       business_id: biz.id,
@@ -104,19 +112,19 @@ export default function PublicChat() {
       conversation_id: sessionId.current,
       role: 'user',
       content: text,
-      metadata: JSON.stringify({ source: 'web_chat_genius' })
+      metadata: { source: 'web_chat_vnext', tempId: tempId }
     }).select().single()
 
-    // 1. Try Cloud AI Brain (Supabase)
+    setMessages(prev => prev.map(m => m.id === tempId ? msg : m))
+
     try {
-      const { error: funcError } = await supabase.functions.invoke('ai-chat', {
-        body: { messageId: msg.id }
-      })
+      // 1. Try Cloud AI Brain
+      const { error: funcError } = await supabase.functions.invoke('ai-chat', { body: { messageId: msg.id } })
       if (funcError) throw funcError
     } catch (err) {
-      console.warn('Cloud AI failed, triggering Direct Genius Brain...', err)
-      // 2. Try Direct Genius Brain (Direct to Groq)
+      console.warn('Cloud AI disconnected, trying Direct Genius Brain...', err)
       try {
+        // 2. Try Direct Genius Brain (Direct to Groq)
         const replyText = await callGeniusAI(text)
         await supabase.from('messages').insert({
           business_id: biz.id,
@@ -124,19 +132,18 @@ export default function PublicChat() {
           conversation_id: sessionId.current,
           role: 'assistant',
           content: replyText,
-          metadata: JSON.stringify({ source: 'genius_direct' })
+          metadata: { source: 'genius_direct' }
         })
       } catch (genErr) {
         console.error('Total AI Failure:', genErr)
-        // Only then do we use the basic greeting
-        const basic = `I'm sorry, my high-intelligence brain is currently rebooting. I can see we have ${products.length} products available like ${products[0]?.name}. How can I help?`
+        const errorMessage = `Brain Connection Issue: ${genErr.message}`
         await supabase.from('messages').insert({
           business_id: biz.id,
           customer_number: 'web_visitor',
           conversation_id: sessionId.current,
           role: 'assistant',
-          content: basic,
-          metadata: JSON.stringify({ source: 'basic_fallback' })
+          content: errorMessage,
+          metadata: { source: 'error_report', error: genErr.message }
         })
       }
     } finally {
@@ -165,7 +172,7 @@ export default function PublicChat() {
           <div className="pc-welcome">
             <div className="si" style={{ background: 'var(--acg)', margin: '0 auto 16px' }}><i className="fa-solid fa-robot" style={{ color: 'var(--ac)' }} /></div>
             <h2>Welcome to {biz.business_name}!</h2>
-            <p>I'm your AI shopping assistant. How can I help you today?</p>
+            <p>I am your AI shopping assistant. How can I help you today?</p>
           </div>
 
           {messages.map((m, i) => (
