@@ -220,7 +220,7 @@ export default function AppShell({ user, profile, onUpdateProfile, onLogout, toa
   const [subscription, setSubscription] = useState(null)
   const [botSettings, setBotSettings] = useState(null)
   const [messages, setMessages] = useState([])
-  const [waConnected, setWaConnected] = useState(false)
+  const [waConnected, setWaConnected] = useState(false) // deprecated, kept for compatibility
   const [waNumber, setWaNumber] = useState('')
   const [msgCount, setMsgCount] = useState(0)
   const [selChat, setSelChat] = useState(null)
@@ -251,7 +251,7 @@ export default function AppShell({ user, profile, onUpdateProfile, onLogout, toa
   const planData = PLANS[planKey]
   const isExpired = () => subscription && subscription.status === 'expired'
   const isSubActive = () => subscription && subscription.status === 'active' && !isExpired()
-  const canBotRun = () => isSubActive() && products.length > 0
+  const canBotRun = () => isSubActive() && products.length > 0 && profile?.slug
 
   useEffect(() => {
     if (!user) return
@@ -723,7 +723,7 @@ export default function AppShell({ user, profile, onUpdateProfile, onLogout, toa
         {view === 'vDash' && (
           <Dashboard
             profile={profile} subscription={subscription} products={products} messages={messages}
-            waConnected={waConnected} msgCount={msgCount} planData={planData} planKey={planKey}
+            msgCount={msgCount} planData={planData} planKey={planKey}
             isExpired={isExpired} isSubActive={isSubActive} canBotRun={canBotRun}
             onNavigate={switchView} orders={orders}
           />
@@ -774,9 +774,9 @@ export default function AppShell({ user, profile, onUpdateProfile, onLogout, toa
         {view === 'vBotTest' && (
           <BotTestView
             profile={profile} products={products} planKey={planKey}
-            waConnected={waConnected} subscription={subscription} isExpired={isExpired}
+            subscription={subscription} isExpired={isExpired}
             isSubActive={isSubActive} productsLength={products.length}
-            messages={tbMessages} onSend={sendBotMsg} onBack={() => switchView('vWA')}
+            messages={tbMessages} onSend={sendBotMsg} onBack={() => switchView('vDash')}
           />
         )}
       </main>
@@ -823,10 +823,10 @@ function SidebarItem({ icon, label, view, currentView, onClick, badge }) {
   )
 }
 
-function Dashboard({ profile, subscription, products, messages, waConnected, msgCount, planData, planKey, isExpired, isSubActive, canBotRun, onNavigate, orders }) {
+function Dashboard({ profile, subscription, products, messages, msgCount, planData, planKey, isExpired, isSubActive, canBotRun, onNavigate, orders }) {
   const lim = planData.msgs
   const pct = lim === Infinity ? 0 : Math.min((msgCount / lim) * 100, 100)
-  const botColor = canBotRun() ? 'var(--ac)' : (waConnected && isExpired() ? 'var(--red)' : 'var(--fg3)')
+  const botColor = canBotRun() ? 'var(--ac)' : 'var(--fg3)'
   const botText = canBotRun() ? 'Active' : 'Off'
   const replyRate = messages.length > 0 ? '87%' : '0%'
   const pendingOrders = orders?.filter(o => o.status === 'pending').length || 0
@@ -844,7 +844,7 @@ function Dashboard({ profile, subscription, products, messages, waConnected, msg
           <i className="fa-solid fa-circle-exclamation" style={{ color: 'var(--red)', fontSize: 20 }} />
           <div style={{ flex: 1 }}>
             <div style={{ fontWeight: 600, fontSize: 15, color: 'var(--red)' }}>Subscription Expired</div>
-            <div style={{ fontSize: 13, color: 'var(--fg2)', marginTop: 2 }}>Your bot has been deactivated. Renew your plan to resume selling on WhatsApp.</div>
+            <div style={{ fontSize: 13, color: 'var(--fg2)', marginTop: 2 }}>Your bot has been deactivated. Renew your plan to resume selling on Web Chat.</div>
           </div>
           <button className="btn-p" style={{ padding: '10px 20px', fontSize: 13, whiteSpace: 'nowrap' }} onClick={() => onNavigate('vPlan')}>Renew Plan</button>
         </div>
@@ -941,11 +941,11 @@ function OrdersView({ orders }) {
 
   return (
     <div className="av" id="vOrders" style={{ display: 'block' }}>
-      <div style={{ marginBottom: 28 }}><h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 4 }}>Orders</h1><p style={{ color: 'var(--fg2)', fontSize: 14 }}>Customer orders placed via WhatsApp</p></div>
+      <div style={{ marginBottom: 28 }}><h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 4 }}>Orders</h1><p style={{ color: 'var(--fg2)', fontSize: 14 }}>Customer orders placed via Web Chat</p></div>
       {!orders.length ? (
         <div className="card" style={{ textAlign: 'center', padding: 60 }}>
           <i className="fa-solid fa-bag-shopping" style={{ fontSize: 48, color: 'var(--fg3)', marginBottom: 16, display: 'block' }} />
-          <p style={{ color: 'var(--fg2)', fontSize: 15 }}>No orders yet. Orders will appear here when customers buy via WhatsApp.</p>
+          <p style={{ color: 'var(--fg2)', fontSize: 15 }}>No orders yet. Orders will appear here when customers buy via Web Chat.</p>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -1014,7 +1014,7 @@ function ProductsView({ products, planData, onAdd, onEdit, onDelete }) {
   )
 }
 
-function ChatsView({ messages, selChat, onSelectChat, onReply }) {
+function ChatsView({ messages, selChat, onSelectChat, onReply, onClearAll, onClearSingle }) {
   const [input, setInput] = useState('')
   const scrollRef = useRef(null)
 
@@ -1411,7 +1411,7 @@ function BotSettingsView({ settings, onSave, toast }) {
   )
 }
 
-function BotTestView({ profile, products, planKey, waConnected, subscription, isExpired, isSubActive, productsLength, messages, onSend, onBack }) {
+function BotTestView({ profile, products, planKey, subscription, isExpired, isSubActive, productsLength, messages, onSend, onBack }) {
   const [input, setInput] = useState('')
   const bodyRef = useRef(null)
 
@@ -1476,7 +1476,7 @@ function BotTestView({ profile, products, planKey, waConnected, subscription, is
             <button onClick={handleSend} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><i className="fa-solid fa-paper-plane" style={{ color: 'var(--ac)', fontSize: 18 }} /></button>
           </div>
         </div>
-        <p style={{ textAlign: 'center', fontSize: 12, color: 'var(--fg3)', marginTop: 12 }}>This simulates how your bot responds to real customers on WhatsApp</p>
+        <p style={{ textAlign: 'center', fontSize: 12, color: 'var(--fg3)', marginTop: 12 }}>This simulates how your bot responds to real customers on Web Chat</p>
       </div>
     </div>
   )

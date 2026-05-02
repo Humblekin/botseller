@@ -17,14 +17,14 @@ export default function Privacy() {
         <ul>
           <li>Email address</li>
           <li>First name and last name</li>
-          <li>Phone number (WhatsApp)</li>
+          <li>Phone number</li>
           <li>Business name and product details</li>
         </ul>
       </section>
 
       <section style={{ marginBottom: 32 }}>
-        <h2 style={{ fontSize: 22, marginBottom: 12 }}>3. WhatsApp Data</h2>
-        <p>Our platform interacts with the WhatsApp Business API. We process messages sent by your customers to provide AI-driven automated responses. We do not sell this data to third parties.</p>
+        <h2 style={{ fontSize: 22, marginBottom: 12 }}>3. Chat Data</h2>
+        <p>Our platform processes messages sent by your customers through our web chat to provide AI-driven automated responses. We do not sell this data to third parties.</p>
       </section>
 
       <section style={{ marginBottom: 32 }}>

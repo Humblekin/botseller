@@ -95,14 +95,28 @@ export default function PublicChat() {
 
     setMessages(prev => prev.map(m => m.id === tempId ? msg : m))
 
+    // DIRECT INTELLIGENCE BRIDGE (Bypassing standard invoke)
     try {
-      const { error: funcError } = await supabase.functions.invoke('ai-chat', {
-        body: { messageId: msg.id }
+      const functionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-chat`
+      const res = await fetch(functionUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY
+        },
+        body: JSON.stringify({ messageId: msg.id })
       })
-      if (funcError) throw funcError
+      
+      if (!res.ok) {
+        const errorText = await res.text()
+        throw new Error(`Cloud Error ${res.status}: ${errorText || 'Check if function is deployed'}`)
+      }
+      
+      console.log('Cloud AI Success via Direct Bridge')
     } catch (err) {
-      console.error('AI Error:', err)
-      const errorMsg = `Cloud Brain Connection Issue: ${err.message || 'Check deployment'}`
+      console.error('AI Bridge Failure:', err)
+      const errorMsg = `AI Connection Failed: ${err.message}`
       await supabase.from('messages').insert({
         business_id: biz.id,
         customer_number: 'web_visitor',
@@ -143,12 +157,25 @@ export default function PublicChat() {
             <p>I am your official AI shopping assistant. How can I help you today?</p>
           </div>
 
-          {messages.map((m, i) => (
-            <div key={m.id || i} className={`m-wrap ${m.role === 'user' ? 'user-side' : 'bot-side'}`}>
-              <div className={m.role === 'user' ? 'u-bubble' : 'b-bubble'}>{m.content}</div>
-              <span className="m-time">{new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · {m.role === 'user' ? 'You' : 'AI Assistant'}</span>
-            </div>
-          ))}
+           {messages.map((m, i) => {
+             let imgMatch = m.content?.match(/\[Image:\s*(https?:\/\/[^\]\s]+)/);
+             if (!imgMatch) imgMatch = m.content?.match(/Here's the image:\s*(https?:\/\/[^\]\s]+)/i);
+             const hasImage = imgMatch && imgMatch[1];
+             const textContent = hasImage ? m.content.replace(/\[Image:\s*https?:\/\/[^\]\s]+/gi, '').replace(/Here's the image:\s*https?:\/\/[^\]\s]+/gi, '').trim() : m.content;
+             return (
+               <div key={m.id || i} className={`m-wrap ${m.role === 'user' ? 'user-side' : 'bot-side'}`}>
+                 <div className={m.role === 'user' ? 'u-bubble' : 'b-bubble'}>
+                   {textContent}
+                   {hasImage && (
+                     <div style={{ marginTop: 10 }}>
+                       <img src={imgMatch[1]} alt="Product" style={{ maxWidth: '100%', borderRadius: 12 }} />
+                     </div>
+                   )}
+                 </div>
+                 <span className="m-time">{new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · {m.role === 'user' ? 'You' : 'AI Assistant'}</span>
+               </div>
+             );
+           })}
           {sending && (
             <div className="m-wrap bot-side">
               <div className="b-bubble" style={{ display: 'flex', gap: 4, alignItems: 'center' }}>

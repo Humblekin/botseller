@@ -17,8 +17,8 @@ export default function Terms() {
       </section>
 
       <section style={{ marginBottom: 32 }}>
-        <h2 style={{ fontSize: 22, marginBottom: 12 }}>3. WhatsApp Usage</h2>
-        <p>You agree to comply with all WhatsApp Business Solution Terms and Meta's Commerce Policy. We are not responsible for any bans or restrictions placed on your WhatsApp account by Meta due to policy violations.</p>
+        <h2 style={{ fontSize: 22, marginBottom: 12 }}>3. Service Usage</h2>
+        <p>You agree to comply with all applicable terms and policies when using our AI chat service. We are not responsible for any restrictions placed on your account due to policy violations.</p>
       </section>
 
       <section style={{ marginBottom: 32 }}>

@@ -134,7 +134,7 @@ CREATE POLICY "Service role can read business info"
   USING (true);
 
 -- ============================================
--- 3. ORDERS TABLE (customer orders via WhatsApp)
+-- 3. ORDERS TABLE (customer orders via Web Chat)
 -- ============================================
 CREATE TABLE IF NOT EXISTS orders (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,

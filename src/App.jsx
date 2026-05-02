@@ -26,6 +26,8 @@ function App() {
     // Basic routing for Meta verification
     // New vNext Routing
     const path = window.location.pathname
+    
+    // Chat route - skip auth check
     if (path.startsWith('/chat/')) {
       const slug = path.split('/chat/')[1]
       if (slug) {
