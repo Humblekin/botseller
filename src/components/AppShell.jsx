@@ -649,6 +649,32 @@ export default function AppShell({ user, profile, onUpdateProfile, onLogout, toa
     }
   }
 
+  const handleClearAllMessages = async () => {
+    if (!window.confirm('Are you sure you want to delete ALL message history for your business? This cannot be undone.')) return
+    try {
+      const { error } = await supabase.from('messages').delete().eq('business_id', profile.id)
+      if (error) throw error
+      setMessages([])
+      setSelChat(null)
+      toast('All messages cleared!', 'ok')
+    } catch (err) {
+      toast(err.message, 'err')
+    }
+  }
+
+  const handleClearSingleChat = async (customerNumber) => {
+    if (!window.confirm(`Delete all messages with ${customerNumber}?`)) return
+    try {
+      const { error } = await supabase.from('messages').delete().eq('business_id', profile.id).eq('customer_number', customerNumber)
+      if (error) throw error
+      setMessages(prev => prev.filter(m => m.customer_number !== customerNumber))
+      if (selChat === customerNumber) setSelChat(null)
+      toast('Conversation deleted', 'ok')
+    } catch (err) {
+      toast(err.message, 'err')
+    }
+  }
+
   return (
     <div className="page active">
       <button className="mtg" onClick={() => setSidebarOpen(o => !o)} aria-label="Toggle menu">
@@ -708,7 +734,16 @@ export default function AppShell({ user, profile, onUpdateProfile, onLogout, toa
             onAdd={() => openProdModal()} onEdit={openProdModal} onDelete={setDelProdId}
           />
         )}
-        {view === 'vChat' && <ChatsView messages={messages} selChat={selChat} onSelectChat={setSelChat} onReply={handleManualReply} />}
+        {view === 'vChat' && (
+          <ChatsView 
+            messages={messages} 
+            selChat={selChat} 
+            onSelectChat={setSelChat} 
+            onReply={handleManualReply} 
+            onClearAll={handleClearAllMessages}
+            onClearSingle={handleClearSingleChat}
+          />
+        )}
         {view === 'vStore' && (
           <StorefrontView 
             profile={profile} 
@@ -1011,7 +1046,17 @@ function ChatsView({ messages, selChat, onSelectChat, onReply }) {
 
   return (
     <div className="av" id="vChat" style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 120px)' }}>
-      <div style={{ marginBottom: 20 }}><h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 4 }}>Chats</h1><p style={{ color: 'var(--fg2)', fontSize: 14 }}>Customer conversations handled by your bot</p></div>
+      <div style={{ marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+        <div>
+          <h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 4 }}>Chats</h1>
+          <p style={{ color: 'var(--fg2)', fontSize: 14 }}>Customer conversations handled by your bot</p>
+        </div>
+        {messages.length > 0 && (
+          <button className="btn-g" onClick={onClearAll} style={{ color: 'var(--red)', borderColor: 'rgba(239, 68, 68, 0.2)' }}>
+            <i className="fa-solid fa-trash-can" style={{ marginRight: 8 }} /> Clear All History
+          </button>
+        )}
+      </div>
       
       <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '300px 1fr', border: '1px solid var(--brd)', borderRadius: 14, overflow: 'hidden', background: 'var(--bg2)' }}>
         {/* Sidebar */}
@@ -1050,6 +1095,20 @@ function ChatsView({ messages, selChat, onSelectChat, onReply }) {
         <div style={{ display: 'flex', flexDirection: 'column', background: '#0b141a', position: 'relative', overflow: 'hidden' }}>
           {selected ? (
             <>
+              <div style={{ padding: '12px 20px', background: 'rgba(255,255,255,.03)', borderBottom: '1px solid var(--brd)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{ width: 34, height: 34, background: 'var(--acg)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600, color: 'var(--ac)' }}>{selected.num.charAt(0)}</div>
+                  <span style={{ fontWeight: 600, fontSize: 14 }}>{selected.num.replace('+233 ', 'Customer ')}</span>
+                </div>
+                <button 
+                  className="btn-g" 
+                  onClick={() => onClearSingle(selected.num)} 
+                  title="Delete this conversation"
+                  style={{ padding: '6px 10px', fontSize: 12, color: 'var(--fg3)' }}
+                >
+                  <i className="fa-solid fa-trash-can" style={{ marginRight: 6 }} /> Delete Chat
+                </button>
+              </div>
               <div style={{ background: 'var(--bg2)', padding: '14px 20px', borderBottom: '1px solid var(--brd)', display: 'flex', alignItems: 'center', gap: 12 }}>
                 <div style={{ width: 36, height: 36, background: 'var(--acg)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600, color: 'var(--ac)' }}>{selChat.replace('+233 ', 'C').charAt(0)}</div>
                 <div style={{ flex: 1 }}>

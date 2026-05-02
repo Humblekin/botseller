@@ -3,7 +3,6 @@ import { supabase } from '../lib/supabase'
 
 export default function PublicChat() {
   const [biz, setBiz] = useState(null)
-  const [settings, setSettings] = useState(null)
   const [products, setProducts] = useState([])
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
@@ -12,26 +11,22 @@ export default function PublicChat() {
   const scrollRef = useRef(null)
   
   const slug = window.location.pathname.split('/chat/')[1]
-  const sessionId = useRef(localStorage.getItem('bs_session_id') || crypto.randomUUID())
+  const [sessionId, setSessionId] = useState(localStorage.getItem('bs_session_id') || crypto.randomUUID())
 
   useEffect(() => {
-    localStorage.setItem('bs_session_id', sessionId.current)
+    localStorage.setItem('bs_session_id', sessionId)
     fetchData()
     
-    const channel = supabase.channel('public_chat_vnext_stable')
+    const channel = supabase.channel(`public_chat_${sessionId}`)
       .on('postgres_changes', { 
         event: 'INSERT', 
         schema: 'public', 
         table: 'messages',
-        filter: `conversation_id=eq.${sessionId.current}`
+        filter: `conversation_id=eq.${sessionId}`
       }, payload => {
         setMessages(prev => {
-          // Check for existing ID OR matching tempId in metadata to prevent duplicates
           const newMeta = payload.new.metadata ? (typeof payload.new.metadata === 'string' ? JSON.parse(payload.new.metadata) : payload.new.metadata) : {}
-          const isDup = prev.some(m => 
-            m.id === payload.new.id || 
-            (m.tempId && newMeta.tempId === m.tempId)
-          )
+          const isDup = prev.some(m => m.id === payload.new.id || (m.tempId && newMeta.tempId === m.tempId))
           if (isDup) return prev
           return [...prev, payload.new]
         })
@@ -39,7 +34,7 @@ export default function PublicChat() {
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
-  }, [slug])
+  }, [slug, sessionId])
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight
@@ -52,15 +47,13 @@ export default function PublicChat() {
       if (!p) { setLoading(false); return }
       setBiz(p)
 
-      const [prods, msgs, sets] = await Promise.all([
+      const [prods, msgs] = await Promise.all([
         supabase.from('products').select('*').eq('user_id', p.id),
-        supabase.from('messages').select('*').eq('conversation_id', sessionId.current).order('created_at', { ascending: true }),
-        supabase.from('bot_settings').select('*').eq('user_id', p.id).maybeSingle()
+        supabase.from('messages').select('*').eq('conversation_id', sessionId).order('created_at', { ascending: true })
       ])
 
       setProducts(prods.data || [])
       setMessages(msgs.data || [])
-      setSettings(sets.data)
     } catch (err) {
       console.error('Fetch error:', err)
     } finally {
@@ -68,33 +61,12 @@ export default function PublicChat() {
     }
   }
 
-  async function callGeniusAI(userText) {
-    // Priority: 1. User's key in settings, 2. Master key in .env
-    const apiKey = settings?.groq_api_key || import.meta.env.VITE_GROQ_API_KEY
-    if (!apiKey || apiKey.includes('YOUR_')) {
-      throw new Error("Missing Groq API Key. Please add VITE_GROQ_API_KEY to your .env file.")
-    }
-
-    const systemPrompt = settings?.custom_instructions || `You are a professional AI assistant for ${biz.business_name}.`
-    const productList = products.map(p => `- ${p.name}: GH₵ ${p.price} (${p.description || ''})`).join('\n')
-
-    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: 'llama3-8b-8192',
-        messages: [
-          { role: 'system', content: `${systemPrompt}\n\nOur Products:\n${productList}\n\nInstructions:\n- Be conversational and helpful.\n- Use emojis.\n- If they want to order, confirm the items and price.\n- Industry: ${biz.industry}.` },
-          { role: 'user', content: userText }
-        ]
-      })
-    })
-    const data = await res.json()
-    if (data.error) throw new Error(data.error.message)
-    return data.choices[0].message.content
+  async function handleClearChat() {
+    if (!window.confirm('Clear your chat history and start over?')) return
+    const newId = crypto.randomUUID()
+    localStorage.setItem('bs_session_id', newId)
+    setSessionId(newId)
+    setMessages([])
   }
 
   async function handleSend() {
@@ -106,46 +78,39 @@ export default function PublicChat() {
     const tempId = Date.now()
     setMessages(prev => [...prev, { id: tempId, tempId, role: 'user', content: text, created_at: new Date().toISOString() }])
 
-    const { data: msg } = await supabase.from('messages').insert({
+    const { data: msg, error: insertError } = await supabase.from('messages').insert({
       business_id: biz.id,
       customer_number: 'web_visitor',
-      conversation_id: sessionId.current,
+      conversation_id: sessionId,
       role: 'user',
       content: text,
       metadata: { source: 'web_chat_vnext', tempId: tempId }
     }).select().single()
 
+    if (insertError) {
+      setMessages(prev => prev.filter(m => m.id !== tempId))
+      setSending(false)
+      return
+    }
+
     setMessages(prev => prev.map(m => m.id === tempId ? msg : m))
 
     try {
-      // 1. Try Cloud AI Brain
-      const { error: funcError } = await supabase.functions.invoke('ai-chat', { body: { messageId: msg.id } })
+      const { error: funcError } = await supabase.functions.invoke('ai-chat', {
+        body: { messageId: msg.id }
+      })
       if (funcError) throw funcError
     } catch (err) {
-      console.warn('Cloud AI disconnected, trying Direct Genius Brain...', err)
-      try {
-        // 2. Try Direct Genius Brain (Direct to Groq)
-        const replyText = await callGeniusAI(text)
-        await supabase.from('messages').insert({
-          business_id: biz.id,
-          customer_number: 'web_visitor',
-          conversation_id: sessionId.current,
-          role: 'assistant',
-          content: replyText,
-          metadata: { source: 'genius_direct' }
-        })
-      } catch (genErr) {
-        console.error('Total AI Failure:', genErr)
-        const errorMessage = `Brain Connection Issue: ${genErr.message}`
-        await supabase.from('messages').insert({
-          business_id: biz.id,
-          customer_number: 'web_visitor',
-          conversation_id: sessionId.current,
-          role: 'assistant',
-          content: errorMessage,
-          metadata: { source: 'error_report', error: genErr.message }
-        })
-      }
+      console.error('AI Error:', err)
+      const errorMsg = `Cloud Brain Connection Issue: ${err.message || 'Check deployment'}`
+      await supabase.from('messages').insert({
+        business_id: biz.id,
+        customer_number: 'web_visitor',
+        conversation_id: sessionId,
+        role: 'assistant',
+        content: errorMsg,
+        metadata: { source: 'cloud_error', error: err.message }
+      })
     } finally {
       setSending(false)
     }
@@ -166,13 +131,16 @@ export default function PublicChat() {
               <div className="pc-status"><span className="sd on" /> <span>AI Assistant Online</span></div>
             </div>
           </div>
+          <button className="pc-clear-btn" onClick={handleClearChat} title="Clear Chat">
+            <i className="fa-solid fa-trash-can" />
+          </button>
         </header>
 
         <main className="pc-chat" ref={scrollRef}>
           <div className="pc-welcome">
             <div className="si" style={{ background: 'var(--acg)', margin: '0 auto 16px' }}><i className="fa-solid fa-robot" style={{ color: 'var(--ac)' }} /></div>
             <h2>Welcome to {biz.business_name}!</h2>
-            <p>I am your AI shopping assistant. How can I help you today?</p>
+            <p>I am your official AI shopping assistant. How can I help you today?</p>
           </div>
 
           {messages.map((m, i) => (
@@ -209,6 +177,8 @@ export default function PublicChat() {
         .pc-avatar { width: 38px; height: 38px; background: var(--ac); color: #000; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px; font-family: 'Space Grotesk'; }
         .pc-name { font-weight: 700; font-size: 15px; font-family: 'Space Grotesk'; color: var(--fg); }
         .pc-status { font-size: 11px; color: var(--fg2); display: flex; align-items: center; gap: 6px; margin-top: 1px; }
+        .pc-clear-btn { background: var(--bg3); border: 1px solid var(--brd); color: var(--fg3); width: 34px; height: 34px; border-radius: 8px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; }
+        .pc-clear-btn:hover { background: var(--red-g); color: var(--red); border-color: var(--red); }
         .pc-chat { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 24px; background: #0b141a; }
         .pc-welcome { text-align: center; padding: 40px 20px; color: var(--fg2); max-width: 320px; margin: 0 auto; }
         .pc-welcome h2 { color: var(--fg); margin-bottom: 10px; font-size: 22px; font-family: 'Space Grotesk'; }
