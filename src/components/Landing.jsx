@@ -68,7 +68,7 @@ export default function Landing({ onNavigate }) {
         <div style={{ maxWidth: 1200, margin: '0 auto', padding: '16px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{ width: 36, height: 36, background: 'var(--ac)', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <i className="fa-brands fa-whatsapp" style={{ color: '#000', fontSize: 20 }} />
+              <i className="fa-solid fa-robot" style={{ color: '#000', fontSize: 20 }} />
             </div>
             <span style={{ fontFamily: "'Space Grotesk'", fontWeight: 700, fontSize: 20 }}>BotSeller</span>
           </div>
@@ -89,23 +89,23 @@ export default function Landing({ onNavigate }) {
 
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'var(--acg)', border: '1px solid var(--ac3)', borderRadius: 24, padding: '6px 16px', marginBottom: 28 }}>
           <span className="sd on" />
-          <span style={{ fontSize: 13, color: 'var(--ac)', fontWeight: 500 }}>Built for Ghanaian businesses</span>
+          <span style={{ fontSize: 13, color: 'var(--ac)', fontWeight: 500 }}>AI Chat Storefronts — BotSeller vNext</span>
         </div>
 
         <h1 style={{ fontSize: 'clamp(36px,6vw,64px)', fontWeight: 700, lineHeight: 1.1, marginBottom: 20 }}>
-          Your WhatsApp<br />becomes a <span style={{ color: 'var(--ac)' }}>Sales Machine</span>
+          Your AI Sales<br />Assistant on <span style={{ color: 'var(--ac)' }}>Autopilot</span>
         </h1>
 
         <p style={{ fontSize: 18, color: 'var(--fg2)', maxWidth: 600, margin: '0 auto 36px', lineHeight: 1.7 }}>
-          Connect your WhatsApp, upload your products, and let AI handle every customer conversation — automatically closing sales while you sleep.
+          Create a premium AI-powered storefront in seconds. Share your link, upload products, and let AI handle every customer inquiry and close sales 24/7.
         </p>
 
         <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap' }}>
           <button className="btn-p" onClick={() => onNavigate('pgSignup')} style={{ padding: '16px 36px', fontSize: 16 }}>
-            Start Free Trial <i className="fa-solid fa-arrow-right" style={{ marginLeft: 8 }} />
+            Create Your Store <i className="fa-solid fa-arrow-right" style={{ marginLeft: 8 }} />
           </button>
           <button className="btn-s" onClick={scrollToFeatures} style={{ padding: '16px 36px', fontSize: 16 }}>
-            See How It Works
+            How It Works
           </button>
         </div>
 
@@ -117,13 +117,13 @@ export default function Landing({ onNavigate }) {
               </div>
               <div>
                 <div style={{ fontSize: 14, fontWeight: 600, color: '#fff' }}>Hakim's Electronics</div>
-                <div style={{ fontSize: 11, color: 'rgba(255,255,255,.6)' }}>online</div>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,.6)' }}>online storefront</div>
               </div>
             </div>
             <HeroChat />
             <div className="wi">
               <span style={{ color: 'rgba(255,255,255,.3)', fontSize: 14 }}>Type a message...</span>
-              <i className="fa-solid fa-microphone" style={{ color: 'rgba(255,255,255,.4)', marginLeft: 'auto' }} />
+              <i className="fa-solid fa-paper-plane" style={{ color: 'var(--ac)', marginLeft: 'auto' }} />
             </div>
           </div>
         </div>
@@ -131,13 +131,13 @@ export default function Landing({ onNavigate }) {
 
       <section id="landFeat" style={{ maxWidth: 1100, margin: '0 auto', padding: '60px 32px' }}>
         <div style={{ textAlign: 'center', marginBottom: 48 }}>
-          <h2 style={{ fontSize: 32, fontWeight: 700, marginBottom: 12 }}>How BotSeller Works</h2>
-          <p style={{ color: 'var(--fg2)', fontSize: 16 }}>Three steps to automate your WhatsApp sales</p>
+          <h2 style={{ fontSize: 32, fontWeight: 700, marginBottom: 12 }}>Automated Sales Experience</h2>
+          <p style={{ color: 'var(--fg2)', fontSize: 16 }}>The future of online commerce in Ghana</p>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 20 }}>
-          <FeatureCard icon="fa-box-open" title="Upload Your Products" desc="Add products with names, prices, descriptions and photos. The AI learns your entire catalog to sell for you." />
-          <FeatureCard icon="fa-brands fa-whatsapp" title="Connect WhatsApp" desc="Link your business WhatsApp number with one click. Your bot starts responding to customers instantly." />
-          <FeatureCard icon="fa-robot" title="AI Sells For You" desc="Smart AI answers questions, suggests products, shares images, negotiates prices, and closes deals 24/7." />
+          <FeatureCard icon="fa-link" title="Unique Store Link" desc="Get a custom URL like botseller.ai/chat/your-store. Customers chat directly with your AI without needing to save numbers." />
+          <FeatureCard icon="fa-box-open" title="Smart Catalog" desc="Upload your products once. The AI becomes an expert on your inventory, suggesting the best items to every customer." />
+          <FeatureCard icon="fa-robot" title="24/7 AI Sales" desc="Your AI assistant answers questions, explains features, calculates delivery, and collects order details instantly." />
         </div>
       </section>
 

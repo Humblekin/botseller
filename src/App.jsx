@@ -8,6 +8,7 @@ import AppShell from './components/AppShell'
 import AdminDashboard from './components/AdminDashboard'
 import Privacy from './components/Privacy'
 import Terms from './components/Terms'
+import PublicChat from './components/PublicChat'
 
 function App() {
   const [page, setPage] = useState('pgLand')
@@ -23,12 +24,18 @@ function App() {
 
   useEffect(() => {
     // Basic routing for Meta verification
-    if (window.location.pathname === '/privacy') {
-      setPage('pgPrivacy')
+    // New vNext Routing
+    const path = window.location.pathname
+    if (path.startsWith('/chat/')) {
+      const slug = path.split('/chat/')[1]
+      if (slug) {
+        setPage('pgPublicChat')
+        return
+      }
     }
-    if (window.location.pathname === '/terms') {
-      setPage('pgTerms')
-    }
+
+    if (path === '/privacy') setPage('pgPrivacy')
+    if (path === '/terms') setPage('pgTerms')
 
     const initAuth = async () => {
       try {
@@ -83,14 +90,42 @@ function App() {
     setPage('pgApp')
   }
 
-  const handleSignup = async (bizName, email, password) => {
+  const handleSignup = async (bizName, email, password, industry) => {
     const { data, error } = await supabase.auth.signUp({ email, password })
     if (error) { toast(error.message, 'err'); return }
     if (data.user) {
-      const { error: updateErr } = await supabase.from('profiles').update({ business_name: bizName }).eq('id', data.user.id)
-      if (updateErr) toast(updateErr.message, 'err')
+      // 1. Update Profile with Business Name, Slug, and Industry
+      const slug = bizName.toLowerCase().replace(/[^a-z0-9]/g, '-') + '-' + Math.floor(Math.random() * 1000)
+      const { error: updateErr } = await supabase.from('profiles').update({ 
+        business_name: bizName,
+        slug: slug,
+        industry: industry
+      }).eq('id', data.user.id)
+      
+      if (updateErr) console.error('Profile update error:', updateErr)
+
+      // 2. Set Default Bot Instructions based on Industry
+      const prompts = {
+        food: "You are a professional waiter and sales assistant for a food business. Use food emojis, be very polite, and focus on helping customers place orders for meals.",
+        fashion: "You are a stylish fashion consultant. Be trendy, helpful, and suggest the best outfits from our catalog.",
+        tech: "You are a tech expert. Be precise with specifications, emphasize speed and quality, and help customers find the best gadgets.",
+        beauty: "You are a beauty and skincare expert. Be welcoming, use sparkle emojis, and provide personalized product recommendations.",
+        service: "You are a professional service assistant. Be formal, efficient, and help customers book appointments or learn about our services.",
+        retail: "You are a helpful retail sales assistant. Focus on product features and ensuring a smooth shopping experience."
+      }
+
+      await supabase.from('bot_settings').upsert({
+        user_id: data.user.id,
+        custom_instructions: prompts[industry] || prompts.retail,
+        bot_name: bizName + " AI"
+      })
+
       setUser(data.user)
-      toast('Account created! Welcome to BotSeller.')
+      // Fetch fresh profile
+      const { data: prof } = await supabase.from('profiles').select('*').eq('id', data.user.id).single()
+      setProfile(prof)
+      
+      toast('Account created! Your AI assistant is ready.')
       setPage('pgApp')
     }
   }
@@ -118,7 +153,8 @@ function App() {
       <AppShell user={user} profile={profile} onUpdateProfile={handleUpdateProfile} onLogout={handleLogout} toast={toast} />
     ) : <Landing onNavigate={setPage} />,
     pgPrivacy: <Privacy />,
-    pgTerms: <Terms />
+    pgTerms: <Terms />,
+    pgPublicChat: <PublicChat />
   }
 
   return (

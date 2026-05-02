@@ -251,7 +251,28 @@ export default function AppShell({ user, profile, onUpdateProfile, onLogout, toa
   const planData = PLANS[planKey]
   const isExpired = () => subscription && subscription.status === 'expired'
   const isSubActive = () => subscription && subscription.status === 'active' && !isExpired()
-  const canBotRun = () => waConnected && isSubActive() && products.length > 0
+  const canBotRun = () => isSubActive() && products.length > 0
+
+  useEffect(() => {
+    if (!user) return
+    
+    const channel = supabase
+      .channel('dashboard_messages')
+      .on('postgres_changes', { 
+        event: 'INSERT', 
+        schema: 'public', 
+        table: 'messages',
+        filter: `business_id=eq.${user.id}`
+      }, payload => {
+        setMessages(prev => {
+          if (prev.find(m => m.id === payload.new.id)) return prev
+          return [...prev, payload.new]
+        })
+      })
+      .subscribe()
+
+    return () => { channel.unsubscribe() }
+  }, [user])
   const isAdmin = profile?.is_admin || user?.app_metadata?.is_admin === true
   console.log('Admin Status Check:', { profile: profile?.is_admin, metadata: user?.app_metadata?.is_admin })
 
@@ -608,17 +629,6 @@ export default function AppShell({ user, profile, onUpdateProfile, onLogout, toa
 
   const handleManualReply = async (customerNum, text) => {
     if (!text.trim()) return
-    if (!waConnected) { toast('Connect WhatsApp to send messages', 'err'); return }
-
-    // Get connection details
-    const { data: conn } = await supabase.from('whatsapp_connections').select('*').eq('user_id', user.id).single()
-    if (!conn) { toast('WhatsApp connection not found', 'err'); return }
-
-    const res = await sendWhatsApp(customerNum, text, conn.access_token, conn.phone_id)
-    if (res.error || (res.errors && res.errors.length)) {
-      toast('Failed to send WhatsApp message: ' + (res.error?.message || res.errors?.[0]?.message), 'err')
-      return
-    }
 
     const { data: lastMsg } = await supabase.from('messages').select('conversation_id').eq('business_id', user.id).eq('customer_number', customerNum).order('created_at', { ascending: false }).limit(1).maybeSingle()
     const conversationId = lastMsg?.conversation_id || crypto.randomUUID()
@@ -649,7 +659,7 @@ export default function AppShell({ user, profile, onUpdateProfile, onLogout, toa
         <div style={{ padding: '20px 20px 16px', borderBottom: '1px solid var(--brd)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{ width: 34, height: 34, background: 'var(--ac)', borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <i className="fa-brands fa-whatsapp" style={{ color: '#000', fontSize: 18 }} />
+              <i className="fa-solid fa-robot" style={{ color: '#000', fontSize: 18 }} />
             </div>
             <span style={{ fontFamily: "'Space Grotesk'", fontWeight: 700, fontSize: 17 }}>BotSeller</span>
           </div>
@@ -660,7 +670,7 @@ export default function AppShell({ user, profile, onUpdateProfile, onLogout, toa
           <SidebarItem icon="fa-box" label="Products" view="vProd" currentView={view} onClick={switchView} />
           <SidebarItem icon="fa-comments" label="Chats" view="vChat" currentView={view} onClick={switchView} badge={messages.length > 0 ? Math.ceil(messages.length / 2) : null} />
           <div style={{ padding: '16px 20px 8px', fontSize: 11, color: 'var(--fg3)', textTransform: 'uppercase', letterSpacing: 1, fontWeight: 600 }}>Setup</div>
-          <SidebarItem icon="fa-brands fa-whatsapp" label="WhatsApp" view="vWA" currentView={view} onClick={switchView} />
+          <SidebarItem icon="fa-link" label="My Storefront" view="vStore" currentView={view} onClick={switchView} />
           <SidebarItem icon="fa-crown" label="Subscription" view="vPlan" currentView={view} onClick={switchView} />
           {isAdmin && <SidebarItem icon="fa-shield-halved" label="System Admin" view="vAdmin" currentView={view} onClick={switchView} />}
           <SidebarItem icon="fa-bag-shopping" label="Orders" view="vOrders" currentView={view} onClick={switchView} badge={orders.filter(o => o.status === 'pending').length > 0 ? orders.filter(o => o.status === 'pending').length : null} />
@@ -699,12 +709,11 @@ export default function AppShell({ user, profile, onUpdateProfile, onLogout, toa
           />
         )}
         {view === 'vChat' && <ChatsView messages={messages} selChat={selChat} onSelectChat={setSelChat} onReply={handleManualReply} />}
-        {view === 'vWA' && (
-          <WhatsAppView
-            waConnected={waConnected} waNumber={waNumber} products={products}
-            subscription={subscription} isExpired={isExpired} isSubActive={isSubActive}
-            onConnect={connectWA} onDisconnect={disconnectWA} onTestBot={startBotTest}
-            onNavigate={switchView} toast={toast} initiateWAConnect={initiateWAConnect}
+        {view === 'vStore' && (
+          <StorefrontView 
+            profile={profile} 
+            onUpdateProfile={onUpdateProfile} 
+            toast={toast}
           />
         )}
         {view === 'vPlan' && (
@@ -818,23 +827,23 @@ function Dashboard({ profile, subscription, products, messages, waConnected, msg
 
       <div style={{ marginBottom: 32 }}>
         <h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 4 }}>Dashboard</h1>
-        <p style={{ color: 'var(--fg2)', fontSize: 14 }}>Overview of your WhatsApp sales bot</p>
+        <p style={{ color: 'var(--fg2)', fontSize: 14 }}>Overview of your AI Chat Storefront</p>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))', gap: 16, marginBottom: 28 }}>
-        <Stat icon="fa-comments" iconColor="var(--ac)" iconBg="var(--acg)" value={msgCount} label="Messages this month" />
+        <Stat icon="fa-comments" iconColor="var(--ac)" iconBg="var(--acg)" value={msgCount} label="AI Conversations" />
         <Stat icon="fa-box" iconColor="var(--info)" iconBg="rgba(6,182,212,.15)" value={products.length} label="Active products" />
-        <Stat icon="fa-bolt" iconColor="var(--warn)" iconBg="rgba(245,158,11,.15)" value={botText} label="Bot status" valueColor={botColor} />
+        <Stat icon="fa-bolt" iconColor="var(--warn)" iconBg="rgba(245,158,11,.15)" value={botText} label="Store status" valueColor={botColor} />
         <Stat icon="fa-bag-shopping" iconColor="#22c55e" iconBg="rgba(34,197,94,.15)" value={pendingOrders > 0 ? `${pendingOrders} pending` : `${totalOrders} total`} label="Orders" />
       </div>
 
       <div className="card" style={{ marginBottom: 28 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-          <span style={{ fontSize: 14, fontWeight: 600 }}>Message Usage</span>
+          <span style={{ fontSize: 14, fontWeight: 600 }}>Conversation Usage</span>
           <span style={{ fontSize: 13, color: 'var(--fg2)' }}>{lim === Infinity ? msgCount + ' messages (unlimited)' : msgCount + ' / ' + lim + ' messages'}</span>
         </div>
         <div className="pbar"><div className="pfill" style={{ width: pct + '%', background: pct > 80 ? 'var(--red)' : 'var(--ac)' }} /></div>
-        <p style={{ fontSize: 12, color: 'var(--fg3)', marginTop: 8 }}>{pct > 80 ? 'Running low! Upgrade now.' : planKey === 'starter' ? 'Upgrade your plan for more messages' : 'You have plenty of messages remaining'}</p>
+        <p style={{ fontSize: 12, color: 'var(--fg3)', marginTop: 8 }}>{pct > 80 ? 'Running low! Upgrade now.' : planKey === 'starter' ? 'Upgrade your plan for more capacity' : 'You have plenty of capacity remaining'}</p>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
@@ -842,14 +851,14 @@ function Dashboard({ profile, subscription, products, messages, waConnected, msg
           <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 16 }}>Quick Actions</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <button className="btn-s" style={{ textAlign: 'left', display: 'flex', alignItems: 'center', gap: 10 }} onClick={() => onNavigate('vProd')}><i className="fa-solid fa-plus" style={{ color: 'var(--ac)' }} /> Add New Product</button>
-            <button className="btn-s" style={{ textAlign: 'left', display: 'flex', alignItems: 'center', gap: 10 }} onClick={() => onNavigate('vWA')}><i className="fa-brands fa-whatsapp" style={{ color: 'var(--ac)' }} /> Connect WhatsApp</button>
+            <button className="btn-s" style={{ textAlign: 'left', display: 'flex', alignItems: 'center', gap: 10 }} onClick={() => window.open(`${window.location.origin}/chat/${profile?.slug || profile?.business_name?.toLowerCase().replace(/ /g, '-')}`, '_blank')}><i className="fa-solid fa-eye" style={{ color: 'var(--ac)' }} /> View My Storefront</button>
             <button className="btn-s" style={{ textAlign: 'left', display: 'flex', alignItems: 'center', gap: 10 }} onClick={() => onNavigate('vPlan')}><i className="fa-solid fa-crown" style={{ color: 'var(--ac)' }} /> Upgrade Plan</button>
           </div>
         </div>
         <div className="card">
-          <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 16 }}>Recent Chats</h3>
+          <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 16 }}>Recent Conversations</h3>
           {!recentPairs.length ? (
-            <p style={{ color: 'var(--fg3)', fontSize: 13 }}>No chats yet. Connect WhatsApp to start.</p>
+            <p style={{ color: 'var(--fg3)', fontSize: 13 }}>No conversations yet. Share your storefront link to start!</p>
           ) : (
             recentPairs.map((p, i) => {
               const name = p.customer_number.replace('+233 ', 'Customer ')
@@ -1092,121 +1101,64 @@ function ChatsView({ messages, selChat, onSelectChat, onReply }) {
   )
 }
 
-function WhatsAppView({ waConnected, waNumber, products, subscription, isExpired, isSubActive, onConnect, onDisconnect, onTestBot, onNavigate, toast, initiateWAConnect }) {
-  const [phone, setPhone] = useState('')
-  const [phoneId, setPhoneId] = useState('')
-  const [accessToken, setAccessToken] = useState('')
+function StorefrontView({ profile, onUpdateProfile, toast }) {
+  const [slug, setSlug] = useState(profile?.slug || '')
+  const storeUrl = `${window.location.origin}/chat/${slug || profile?.business_name?.toLowerCase().replace(/ /g, '-')}`
 
-  const handleConnect = () => {
-    if (!phone.trim()) { toast('Enter your WhatsApp number', 'err'); return }
-    // phoneId and accessToken are now optional (defaults to system tokens)
-    initiateWAConnect(phone.trim(), phoneId.trim(), accessToken.trim())
+  const handleSaveSlug = () => {
+    if (!slug.trim()) { toast('Slug cannot be empty', 'err'); return }
+    const cleanSlug = slug.trim().toLowerCase().replace(/ /g, '-')
+    onUpdateProfile({ ...profile, slug: cleanSlug })
   }
 
-  const tracker = [
-    { done: true, label: 'Account Created', desc: 'Your BotSeller profile is ready.' },
-    { done: products.length > 0, label: 'Products Added', desc: 'Add items for the AI to sell.' },
-    { done: waConnected || !!phone, label: 'Number Submitted', desc: 'Submit the number you want to use.' },
-    { done: waConnected, label: 'Meta Registration', desc: 'Our team is verifying your number with Meta.' },
-    { done: waConnected && isSubActive(), label: 'AI Activated', desc: 'Your bot is live and responding!' }
-  ]
+  const copyLink = () => {
+    navigator.clipboard.writeText(storeUrl)
+    toast('Store link copied!', 'ok')
+  }
 
   return (
-    <div className="av" id="vWA" style={{ display: 'block' }}>
-      <div style={{ marginBottom: 28 }}><h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 4 }}>WhatsApp Connection</h1><p style={{ color: 'var(--fg2)', fontSize: 14 }}>Connect your business WhatsApp number</p></div>
-      <div style={{ maxWidth: 600 }}>
-        <div className="card" style={{ marginBottom: 20 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20 }}>
-            <div style={{ width: 56, height: 56, background: 'var(--acg)', borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><i className="fa-brands fa-whatsapp" style={{ color: 'var(--ac)', fontSize: 28 }} /></div>
-            <div>
-              <h3 style={{ fontSize: 18, fontWeight: 600 }}>Connection Status</h3>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                <span className={`sd ${waConnected ? 'on' : 'off'}`} />
-                <span style={{ fontSize: 13, color: waConnected ? 'var(--ac)' : 'var(--fg2)' }}>{waConnected ? 'Connected' : 'Not connected'}</span>
-              </div>
-            </div>
-          </div>
-          {!waConnected ? (
-            <div>
-              <div style={{ background: 'var(--bg)', borderRadius: 10, padding: 20, marginBottom: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
-                <div style={{ background: 'rgba(37, 211, 102, 0.1)', border: '1px solid rgba(37, 211, 102, 0.3)', borderRadius: 10, padding: 16, marginBottom: 8 }}>
-                  <h4 style={{ fontSize: 14, fontWeight: 700, color: 'var(--ac)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <i className="fa-solid fa-circle-info" /> Important Instructions
-                  </h4>
-                  <ul style={{ fontSize: 12, color: 'var(--fg2)', paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    <li>We recommend using a <b>dedicated number</b> for your bot (a separate SIM card).</li>
-                    <li>If you use your existing number, you must <b>delete the account from the WhatsApp app</b> on your phone before connecting.</li>
-                    <li>Once connected, you will manage all your customer chats directly from the <b>Live Chat</b> tab in this dashboard.</li>
-                  </ul>
-                </div>
-
-                <div>
-                  <label className="fl">Your WhatsApp Business Number</label>
-                  <input type="tel" className="fi" value={phone} onChange={e => setPhone(e.target.value.replace(/\D/g, '').substring(0, 10))} placeholder="0241234567" />
-                  <p style={{ fontSize: 12, color: 'var(--fg3)', marginTop: 8 }}>Enter your 10-digit number. Once you click connect, our team will verify your number with Meta to activate your bot.</p>
-                </div>
-                
-                {/* Advanced Mode Hidden by Default */}
-                <details style={{ cursor: 'pointer' }}>
-                  <summary style={{ fontSize: 11, color: 'var(--fg3)', marginBottom: 10 }}>Advanced: Use custom Meta API credentials</summary>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 10 }}>
-                    <div>
-                      <label className="fl">Meta Phone ID</label>
-                      <input type="text" className="fi" value={phoneId} onChange={e => setPhoneId(e.target.value)} placeholder="Optional" />
-                    </div>
-                    <div>
-                      <label className="fl">Meta Access Token</label>
-                      <input type="password" className="fi" value={accessToken} onChange={e => setAccessToken(e.target.value)} placeholder="Optional" />
-                    </div>
-                  </div>
-                </details>
-              </div>
-              <button className="btn-p" style={{ width: '100%' }} onClick={handleConnect}><i className="fa-solid fa-link" style={{ marginRight: 8 }} /> Connect WhatsApp</button>
-            </div>
-          ) : (
-            <div>
-              <div style={{ background: 'var(--bg)', borderRadius: 10, padding: 16, marginBottom: 16 }}>
-                <div style={{ fontSize: 12, color: 'var(--fg3)', marginBottom: 4 }}>Connected Number</div>
-                <div style={{ fontSize: 16, fontWeight: 600 }}>{waNumber}</div>
-              </div>
-              <div style={{ display: 'flex', gap: 10 }}>
-                <button className="btn-s" style={{ flex: 1 }} onClick={onTestBot}>Test Bot</button>
-                <button className="btn-d" style={{ flex: 1 }} onClick={onDisconnect}>Disconnect</button>
-              </div>
-            </div>
-          )}
-        </div>
+    <div className="av" id="vStore" style={{ display: 'block' }}>
+      <div style={{ marginBottom: 28 }}><h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 4 }}>My Storefront</h1><p style={{ color: 'var(--fg2)', fontSize: 14 }}>Manage your public AI chat link and QR code</p></div>
+      
+      <div style={{ maxWidth: 600, display: 'flex', flexDirection: 'column', gap: 20 }}>
         <div className="card">
-          <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 20 }}>Onboarding Status</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-            {tracker.map((c, i) => (
-              <div key={i} style={{ display: 'flex', gap: 14 }}>
-                <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                  <div style={{ 
-                    width: 24, 
-                    height: 24, 
-                    borderRadius: '50%', 
-                    border: `2px solid ${c.done ? 'var(--ac)' : 'var(--brd)'}`, 
-                    background: c.done ? 'var(--acg)' : 'transparent', 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'center', 
-                    zIndex: 2,
-                    transition: 'all 0.3s ease'
-                  }}>
-                    {c.done ? <i className="fa-solid fa-check" style={{ fontSize: 11, color: 'var(--ac)' }} /> : <span style={{ fontSize: 10, color: 'var(--fg3)', fontWeight: 600 }}>{i + 1}</span>}
-                  </div>
-                  {i < tracker.length - 1 && (
-                    <div style={{ width: 2, height: 'calc(100% + 20px)', background: tracker[i+1].done ? 'var(--ac)' : 'var(--brd)', position: 'absolute', top: 24, zIndex: 1 }} />
-                  )}
-                </div>
-                <div style={{ opacity: c.done ? 1 : 0.6 }}>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: c.done ? 'var(--fg)' : 'var(--fg2)' }}>{c.label}</div>
-                  <div style={{ fontSize: 11, color: 'var(--fg3)', marginTop: 2 }}>{c.desc}</div>
-                </div>
-              </div>
-            ))}
+          <h3 style={{ fontSize: 18, fontWeight: 600, marginBottom: 16 }}>Store Link & Slug</h3>
+          <p style={{ fontSize: 13, color: 'var(--fg2)', marginBottom: 20 }}>This is your unique link. You can put this in your Instagram bio, Facebook page, or send it to customers.</p>
+          
+          <div style={{ marginBottom: 20 }}>
+            <label className="fl">Custom Store Slug</label>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <input 
+                type="text" 
+                className="fi" 
+                value={slug} 
+                onChange={e => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))} 
+                placeholder="e.g. abdul-store" 
+              />
+              <button className="btn-p" onClick={handleSaveSlug}>Save</button>
+            </div>
+            <p style={{ fontSize: 11, color: 'var(--fg3)', marginTop: 8 }}>Only letters, numbers, and dashes allowed.</p>
           </div>
+
+          <div style={{ background: 'var(--bg2)', padding: 16, borderRadius: 12, border: '1px solid var(--brd)', display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 13, fontWeight: 500, color: 'var(--ac)' }}>
+              {storeUrl}
+            </div>
+            <button className="btn-s" style={{ padding: '8px 16px', fontSize: 12 }} onClick={copyLink}>Copy Link</button>
+          </div>
+        </div>
+
+        <div className="card" style={{ textAlign: 'center' }}>
+          <h3 style={{ fontSize: 18, fontWeight: 600, marginBottom: 8 }}>Store QR Code</h3>
+          <p style={{ fontSize: 13, color: 'var(--fg2)', marginBottom: 24 }}>Customers can scan this code in your physical shop to start chatting with your AI assistant.</p>
+          
+          <div style={{ width: 180, height: 180, background: '#fff', padding: 10, borderRadius: 12, margin: '0 auto 24px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <img src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(storeUrl)}`} alt="Store QR" style={{ width: '100%', height: '100%' }} />
+          </div>
+          
+          <button className="btn-s" onClick={() => window.open(`https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(storeUrl)}`, '_blank')}>
+            <i className="fa-solid fa-download" style={{ marginRight: 8 }} /> Download QR Code
+          </button>
         </div>
       </div>
     </div>
@@ -1329,9 +1281,18 @@ function BotSettingsView({ settings, onSave, toast }) {
   const [maxWords, setMaxWords] = useState(settings?.max_response_words || 150)
   const [language, setLanguage] = useState(settings?.language || 'en')
   const [instructions, setInstructions] = useState(settings?.custom_instructions || '')
+  const [groqKey, setGroqKey] = useState(settings?.groq_api_key || '')
 
   const handleSave = async () => {
-    const result = await onSave({ tone, style, sales_strategy: strategy, max_response_words: maxWords, language, custom_instructions: instructions })
+    const result = await onSave({ 
+      tone, 
+      style, 
+      sales_strategy: strategy, 
+      max_response_words: maxWords, 
+      language, 
+      custom_instructions: instructions,
+      groq_api_key: groqKey
+    })
     if (result) toast('Bot settings saved!')
   }
 
@@ -1374,6 +1335,11 @@ function BotSettingsView({ settings, onSave, toast }) {
               <option value="ha">Hausa</option>
             </select>
           </div>
+          <div style={{ marginBottom: 20, borderTop: '1px solid var(--brd)', paddingTop: 20 }}>
+            <label className="fl" style={{ color: 'var(--ac)', fontWeight: 700 }}>Groq API Key</label>
+            <input type="password" className="fi" value={groqKey} onChange={e => setGroqKey(e.target.value)} placeholder="Paste your Groq API Key here" />
+            <p style={{ fontSize: 11, color: 'var(--fg3)', marginTop: 8 }}>This key is used to power your AI assistant's brain.</p>
+          </div>
         </div>
         <div className="card" style={{ marginBottom: 20 }}>
           <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 20 }}>Custom Instructions</h3>
@@ -1390,7 +1356,7 @@ function BotTestView({ profile, products, planKey, waConnected, subscription, is
   const [input, setInput] = useState('')
   const bodyRef = useRef(null)
 
-  const canRun = waConnected && isSubActive() && productsLength > 0
+  const canRun = isSubActive() && productsLength > 0
 
   useEffect(() => {
     if (bodyRef.current) bodyRef.current.scrollTop = bodyRef.current.scrollHeight
@@ -1406,7 +1372,7 @@ function BotTestView({ profile, products, planKey, waConnected, subscription, is
 
   let blockReason = ''
   if (!canRun) {
-    if (!waConnected) blockReason = 'WhatsApp is not connected. Go to the WhatsApp tab and connect your number.'
+    if (isExpired()) blockReason = 'Your subscription has expired. Please renew your plan to reactivate the bot.'
     else if (isExpired()) blockReason = 'Your subscription has expired. Please renew your plan to reactivate the bot.'
     else if (!isSubActive()) blockReason = 'Your subscription is not active. Please subscribe to a plan.'
     else if (productsLength === 0) blockReason = 'No products found. Add products before testing the bot.'
