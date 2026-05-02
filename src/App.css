@@ -91,7 +91,7 @@ h1,h2,h3,h4,h5,h6{font-family:'Space Grotesk',sans-serif}
 .pfill{height:100%;background:var(--ac);border-radius:3px;transition:width .6s ease}
 
 .mtg{display:none;position:fixed;top:16px;left:16px;z-index:50;width:42px;height:42px;background:var(--card);border:1px solid var(--brd);border-radius:10px;align-items:center;justify-content:center;cursor:pointer;color:var(--fg);font-size:18px}
-@media(max-width:768px){.sidebar{transform:translateX(-100%)}.sidebar.open{transform:translateX(0)}.mc{margin-left:0;padding:20px;padding-top:68px}.mtg{display:flex}}
+@media(max-width:768px){.sidebar{transform:translateX(-100%)}.sidebar.open{transform:translateX(0)}.mc{margin-left:0;padding:20px;padding-top:68px}.mtg{display:flex}.chats-grid{grid-template-columns:1fr!important}.chats-sidebar{display:none}.chats-area{display:flex!important}}
 
 .fc{position:relative;overflow:hidden}
 .fc::after{content:'';position:absolute;inset:0;background:radial-gradient(circle at var(--mx,50%) var(--my,50%),rgba(37,211,102,.08),transparent 60%);opacity:0;transition:opacity .3s;pointer-events:none}

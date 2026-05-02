@@ -921,11 +921,13 @@ function Dashboard({ profile, subscription, products, messages, msgCount, planDa
 
 function Stat({ icon, iconColor, iconBg, value, label, valueColor }) {
   return (
-    <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-      <div className="si" style={{ background: iconBg }}><i className={`fa-solid ${icon}`} style={{ color: iconColor }} /></div>
+    <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+      <div style={{ width: 44, height: 44, background: iconBg, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+        <i className={`fa-solid ${icon}`} style={{ fontSize: 18, color: iconColor }} />
+      </div>
       <div>
-        <div style={{ fontSize: 24, fontWeight: 700, fontFamily: "'Space Grotesk'", color: valueColor || undefined }}>{value}</div>
-        <div style={{ fontSize: 12, color: 'var(--fg2)' }}>{label}</div>
+        <div style={{ fontSize: 22, fontWeight: 700, color: valueColor || 'inherit', fontFamily: "'Space Grotesk'" }}>{value}</div>
+        <div style={{ fontSize: 12, color: 'var(--fg3)' }}>{label}</div>
       </div>
     </div>
   )
@@ -1043,13 +1045,21 @@ function ChatsView({ messages, selChat, onSelectChat, onReply, onClearAll, onCle
   entries.sort((a, b) => new Date(b.last.created_at) - new Date(a.last.created_at))
 
   const selected = selChat ? entries.find(e => e.num === selChat) : null
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
 
   return (
     <div className="av" id="vChat" style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 120px)' }}>
-      <div style={{ marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-        <div>
-          <h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 4 }}>Chats</h1>
-          <p style={{ color: 'var(--fg2)', fontSize: 14 }}>Customer conversations handled by your bot</p>
+      <div style={{ marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {isMobile && selChat && (
+            <button onClick={() => onSelectChat(null)} style={{ background: 'none', border: 'none', color: 'var(--fg2)', cursor: 'pointer', padding: 4 }}>
+              <i className="fa-solid fa-arrow-left" />
+            </button>
+          )}
+          <div>
+            <h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 4 }}>Chats</h1>
+            <p style={{ color: 'var(--fg2)', fontSize: 14 }}>Customer conversations handled by your bot</p>
+          </div>
         </div>
         {messages.length > 0 && (
           <button className="btn-g" onClick={onClearAll} style={{ color: 'var(--red)', borderColor: 'rgba(239, 68, 68, 0.2)' }}>
@@ -1058,9 +1068,9 @@ function ChatsView({ messages, selChat, onSelectChat, onReply, onClearAll, onCle
         )}
       </div>
       
-      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '300px 1fr', border: '1px solid var(--brd)', borderRadius: 14, overflow: 'hidden', background: 'var(--bg2)' }}>
+       <div className="chats-grid" style={{ flex: 1, display: 'grid', gridTemplateColumns: '300px 1fr', border: '1px solid var(--brd)', borderRadius: 14, overflow: 'hidden', background: 'var(--bg2)', minHeight: 0 }}>
         {/* Sidebar */}
-        <div style={{ borderRight: '1px solid var(--brd)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div className="chats-sidebar" style={{ borderRight: '1px solid var(--brd)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <div style={{ padding: 16, borderBottom: '1px solid var(--brd)' }}>
             <input type="text" className="fi" placeholder="Search chats..." style={{ padding: '10px 14px', fontSize: 13 }} />
           </div>
@@ -1092,11 +1102,16 @@ function ChatsView({ messages, selChat, onSelectChat, onReply, onClearAll, onCle
         </div>
 
         {/* Chat Area */}
-        <div style={{ display: 'flex', flexDirection: 'column', background: '#0b141a', position: 'relative', overflow: 'hidden' }}>
+        <div className="chats-area" style={{ display: 'flex', flexDirection: 'column', background: '#0b141a', position: 'relative', overflow: 'hidden' }}>
           {selected ? (
             <>
               <div style={{ padding: '12px 20px', background: 'rgba(255,255,255,.03)', borderBottom: '1px solid var(--brd)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  {window.innerWidth < 768 && (
+                    <button onClick={() => onSelectChat(null)} style={{ background: 'none', border: 'none', color: 'var(--fg2)', cursor: 'pointer', padding: 4, marginRight: 4 }}>
+                      <i className="fa-solid fa-arrow-left" />
+                    </button>
+                  )}
                   <div style={{ width: 34, height: 34, background: 'var(--acg)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600, color: 'var(--ac)' }}>{selected.num.charAt(0)}</div>
                   <span style={{ fontWeight: 600, fontSize: 14 }}>{selected.num.replace('+233 ', 'Customer ')}</span>
                 </div>
@@ -1109,7 +1124,7 @@ function ChatsView({ messages, selChat, onSelectChat, onReply, onClearAll, onCle
                   <i className="fa-solid fa-trash-can" style={{ marginRight: 6 }} /> Delete Chat
                 </button>
               </div>
-              <div style={{ background: 'var(--bg2)', padding: '14px 20px', borderBottom: '1px solid var(--brd)', display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ padding: '12px 20px', background: 'rgba(255,255,255,.03)', borderBottom: '1px solid var(--brd)', display: 'flex', alignItems: 'center', gap: 12 }}>
                 <div style={{ width: 36, height: 36, background: 'var(--acg)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600, color: 'var(--ac)' }}>{selChat.replace('+233 ', 'C').charAt(0)}</div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 14, fontWeight: 600 }}>{selChat.replace('+233 ', 'Customer ')}</div>
