@@ -4,10 +4,14 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
+  // Handle CORS Preflight
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders })
+  }
 
   try {
     const supabaseClient = createClient(
@@ -16,6 +20,7 @@ serve(async (req) => {
     )
 
     const { messageId } = await req.json()
+    console.log('Processing message:', messageId)
     
     // 1. Fetch message and business info
     const { data: msg, error: msgErr } = await supabaseClient
@@ -24,7 +29,7 @@ serve(async (req) => {
       .eq('id', messageId)
       .single()
 
-    if (msgErr || !msg) throw new Error('Message not found')
+    if (msgErr || !msg) throw new Error('Message not found in database')
     if (msg.role !== 'user') return new Response(JSON.stringify({ skipped: true }), { headers: corsHeaders })
 
     const bizId = msg.business_id
@@ -40,29 +45,22 @@ serve(async (req) => {
     const settings = settingsRes.data || {}
     const groqKey = settings.groq_api_key || Deno.env.get('GROQ_API_KEY')
 
-    if (!groqKey) throw new Error('No Groq API Key found')
+    if (!groqKey) throw new Error('No Groq API Key found in secrets or settings')
 
     // 3. Build Prompt
-    const productContext = products.map(p => `${p.name}: GH₵ ${p.price} - ${p.description}`).join('\n')
+    const productContext = products.map(p => `${p.name}: GH₵ ${p.price} - ${p.description || ''}`).join('\n')
     const systemPrompt = `
-      You are a helpful AI sales assistant for ${biz.business_name}.
-      Greeting: ${biz.greeting || 'Hello!'}
-      Tone: ${settings.tone || 'friendly'}
-      Style: ${settings.style || 'concise'}
-      Strategy: ${settings.sales_strategy || 'consultative'}
-      Language: ${settings.language || 'en'}
+      You are a professional AI assistant for ${biz.business_name}.
+      Industry: ${biz.industry || 'Retail'}
       
-      Products:
+      Products Available:
       ${productContext}
       
-      Custom Instructions:
+      Instructions:
+      - Be helpful, polite, and conversational.
+      - Use emojis.
+      - If they want to buy, confirm the order details.
       ${settings.custom_instructions || ''}
-      
-      Rules:
-      - Be polite and helpful.
-      - If asked about price, use the prices provided above.
-      - If a product isn't listed, politely say you don't carry it yet.
-      - Keep responses under ${settings.max_response_words || 150} words.
     `
 
     // 4. Call Groq
@@ -82,7 +80,9 @@ serve(async (req) => {
     })
 
     const groqData = await groqRes.json()
-    const aiReply = groqData.choices?.[0]?.message?.content || "I'm sorry, I couldn't process that right now."
+    if (groqData.error) throw new Error(`Groq API Error: ${groqData.error.message}`)
+    
+    const aiReply = groqData.choices?.[0]?.message?.content || "I'm sorry, I'm having trouble thinking right now."
 
     // 5. Save AI reply
     await supabaseClient.from('messages').insert({
@@ -91,13 +91,19 @@ serve(async (req) => {
       conversation_id: msg.conversation_id,
       role: 'assistant',
       content: aiReply,
-      metadata: JSON.stringify({ source: 'ai_chat_vnext' })
+      metadata: JSON.stringify({ source: 'ai_chat_vnext_stable' })
     })
 
-    return new Response(JSON.stringify({ success: true }), { headers: corsHeaders, status: 200 })
+    return new Response(JSON.stringify({ success: true, reply: aiReply }), { 
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 200 
+    })
 
   } catch (err) {
-    console.error('AI Chat Error:', err)
-    return new Response(JSON.stringify({ error: err.message }), { headers: corsHeaders, status: 500 })
+    console.error('AI Chat Error:', err.message)
+    return new Response(JSON.stringify({ error: err.message }), { 
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 500 
+    })
   }
 })
