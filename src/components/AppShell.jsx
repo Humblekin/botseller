@@ -1105,35 +1105,28 @@ function ChatsView({ messages, selChat, onSelectChat, onReply, onClearAll, onCle
         <div className="chats-area" style={{ display: 'flex', flexDirection: 'column', background: '#0b141a', position: 'relative', overflow: 'hidden' }}>
           {selected ? (
             <>
-              <div style={{ padding: '12px 20px', background: 'rgba(255,255,255,.03)', borderBottom: '1px solid var(--brd)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  {window.innerWidth < 768 && (
-                    <button onClick={() => onSelectChat(null)} style={{ background: 'none', border: 'none', color: 'var(--fg2)', cursor: 'pointer', padding: 4, marginRight: 4 }}>
-                      <i className="fa-solid fa-arrow-left" />
-                    </button>
-                  )}
-                  <div style={{ width: 34, height: 34, background: 'var(--acg)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600, color: 'var(--ac)' }}>{selected.num.charAt(0)}</div>
-                  <span style={{ fontWeight: 600, fontSize: 14 }}>{selected.num.replace('+233 ', 'Customer ')}</span>
+              <div style={{ padding: '10px 16px', background: 'rgba(255,255,255,.03)', borderBottom: '1px solid var(--brd)', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+                {window.innerWidth < 768 && (
+                  <button onClick={() => onSelectChat(null)} style={{ background: 'none', border: 'none', color: 'var(--fg2)', cursor: 'pointer', padding: 4 }}>
+                    <i className="fa-solid fa-arrow-left" />
+                  </button>
+                )}
+                <div style={{ width: 34, height: 34, background: 'var(--acg)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600, color: 'var(--ac)', flexShrink: 0 }}>{selected.num.charAt(0)}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{selChat.replace('+233 ', 'Customer ')}</div>
+                  <div style={{ fontSize: 11, color: 'var(--fg3)' }}>{selChat} · {selected.conversationCount} chat{selected.conversationCount > 1 ? 's' : ''}</div>
                 </div>
                 <button 
                   className="btn-g" 
                   onClick={() => onClearSingle(selected.num)} 
                   title="Delete this conversation"
-                  style={{ padding: '6px 10px', fontSize: 12, color: 'var(--fg3)' }}
+                  style={{ padding: '6px 10px', fontSize: 12, color: 'var(--fg3)', flexShrink: 0 }}
                 >
-                  <i className="fa-solid fa-trash-can" style={{ marginRight: 6 }} /> Delete Chat
+                  <i className="fa-solid fa-trash-can" style={{ marginRight: 4 }} />
                 </button>
               </div>
-              <div style={{ padding: '12px 20px', background: 'rgba(255,255,255,.03)', borderBottom: '1px solid var(--brd)', display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ width: 36, height: 36, background: 'var(--acg)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600, color: 'var(--ac)' }}>{selChat.replace('+233 ', 'C').charAt(0)}</div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 14, fontWeight: 600 }}>{selChat.replace('+233 ', 'Customer ')}</div>
-                  <div style={{ fontSize: 11, color: 'var(--fg3)' }}>{selChat}</div>
-                </div>
-                <span className="badge b-on">{selected.conversationCount} chat{selected.conversationCount > 1 ? 's' : ''}</span>
-              </div>
               
-              <div ref={scrollRef} style={{ flex: 1, padding: '20px 24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div ref={scrollRef} className="chats-messages" style={{ flex: 1, padding: '20px 24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {selected.msgs.map(m => (
                   <div key={m.id} style={{ display: 'flex', flexDirection: 'column', alignItems: m.role === 'user' ? 'flex-start' : 'flex-end' }}>
                     <div className={m.role === 'user' ? 'cbi' : 'cbo'} style={{ whiteSpace: 'pre-line', boxShadow: '0 1px 2px rgba(0,0,0,0.1)' }}>{escHtml(m.content)}</div>

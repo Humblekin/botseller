@@ -159,9 +159,10 @@ export default function PublicChat() {
 
            {messages.map((m, i) => {
              let imgMatch = m.content?.match(/\[Image:\s*(https?:\/\/[^\]\s]+)/);
+             if (!imgMatch) imgMatch = m.content?.match(/Here's the image:\s*\[Image:\s*(https?:\/\/[^\]\s]+)/i);
              if (!imgMatch) imgMatch = m.content?.match(/Here's the image:\s*(https?:\/\/[^\]\s]+)/i);
              const hasImage = imgMatch && imgMatch[1];
-             const textContent = hasImage ? m.content.replace(/\[Image:\s*https?:\/\/[^\]\s]+/gi, '').replace(/Here's the image:\s*https?:\/\/[^\]\s]+/gi, '').trim() : m.content;
+             const textContent = hasImage ? m.content.replace(/\[Image:\s*https?:\/\/[^\]\s]+\]?/gi, '').replace(/Here's the image:\s*\[Image:\s*https?:\/\/[^\]\s]+\]?/gi, '').replace(/Here's the image:\s*https?:\/\/[^\]\s]+/gi, '').replace(/\[Image:\]/gi, '').trim() : m.content;
              return (
                <div key={m.id || i} className={`m-wrap ${m.role === 'user' ? 'user-side' : 'bot-side'}`}>
                  <div className={m.role === 'user' ? 'u-bubble' : 'b-bubble'}>
@@ -224,7 +225,7 @@ export default function PublicChat() {
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes pgIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes blink { 0% { opacity: .2; } 20% { opacity: 1; } 100% { opacity: .2; } }
-        @media (max-width: 600px) { .pc-main-wrapper { border: none; max-width: 100%; } }
+        @media (max-width: 600px) { .pc-main-wrapper { border: none; max-width: 100%; } .m-wrap { max-width: 90%; } .b-bubble img, .u-bubble img { max-width: 100%; height: auto; display: block; border-radius: 10px; margin-top: 8px; } }
       `}</style>
     </div>
   )
