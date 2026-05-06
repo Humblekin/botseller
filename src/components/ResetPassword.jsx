@@ -7,17 +7,29 @@ export default function ResetPassword({ onNavigate }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [done, setDone] = useState(false)
+  const [checking, setChecking] = useState(true)
+  const [validLink, setValidLink] = useState(false)
 
   useEffect(() => {
-    supabase.auth.onAuthStateChange((event, session) => {
-      if (!session && event !== 'SIGNED_OUT') {
-        setError('Invalid or expired reset link. Please request a new one.')
-      }
+    const verify = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      setValidLink(!!session)
+      setChecking(false)
+    }
+    verify()
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setValidLink(!!session)
     })
+    return () => subscription.unsubscribe()
   }, [])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    if (!validLink) {
+      setError('Invalid or expired reset link. Please request a new one.')
+      return
+    }
     if (password.length < 6) {
       setError('Password must be at least 6 characters')
       return
@@ -37,6 +49,16 @@ export default function ResetPassword({ onNavigate }) {
     setLoading(false)
   }
 
+  if (checking) {
+    return (
+      <div className="page active">
+        <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="spinner" />
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="page active">
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 32 }}>
@@ -49,7 +71,7 @@ export default function ResetPassword({ onNavigate }) {
               {done ? 'Password updated' : 'New password'}
             </h1>
             <p style={{ color: 'var(--fg2)', fontSize: 14 }}>
-              {done ? 'Your password has been changed successfully' : 'Choose a strong password for your account'}
+              {done ? 'Your password has been changed successfully' : validLink ? 'Choose a strong password for your account' : 'Reset link invalid'}
             </p>
           </div>
 
@@ -67,7 +89,7 @@ export default function ResetPassword({ onNavigate }) {
                 Sign In
               </button>
             </div>
-          ) : (
+          ) : validLink ? (
             <form className="card" style={{ padding: 32 }} onSubmit={handleSubmit}>
               <div style={{ marginBottom: 20 }}>
                 <label className="fl">New password</label>
@@ -84,6 +106,13 @@ export default function ResetPassword({ onNavigate }) {
                 <i className="fa-solid fa-arrow-left" style={{ marginRight: 6 }} /> Back to sign in
               </button>
             </form>
+          ) : (
+            <div className="card" style={{ padding: 32, textAlign: 'center' }}>
+              <p style={{ marginBottom: 24, color: 'var(--fg2)' }}>This reset link is invalid or expired.</p>
+              <button className="btn-p" style={{ width: '100%' }} onClick={() => onNavigate('pgLogin')}>
+                Return to Sign In
+              </button>
+            </div>
           )}
         </div>
       </div>

@@ -1,5 +1,9 @@
 # For detailed configuration reference, visit https://supabase.com/docs/reference/cli/config
-project_id = "YOUR_PROJECT_ID"
+project_id = "azdtldrxezklibncvcrn"
+
+[auth.rate_limit]
+token_recovery = "1s"
+email_otp = "1s"
 
 [functions.whatsapp-webhook]
 verify_jwt = false
