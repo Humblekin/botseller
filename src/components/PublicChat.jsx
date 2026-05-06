@@ -14,6 +14,41 @@ export default function PublicChat() {
   const [sessionId, setSessionId] = useState(localStorage.getItem('bs_session_id') || crypto.randomUUID())
 
   useEffect(() => {
+    // SECURITY SHIELD: Deterrents against inspection
+    const handleContextMenu = (e) => e.preventDefault()
+    const handleKeyDown = (e) => {
+      if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && e.key === 'I') || (e.ctrlKey && e.shiftKey && e.key === 'J') || (e.ctrlKey && e.key === 'U')) {
+        e.preventDefault()
+        alert('Inspection is disabled for security reasons.')
+      }
+    }
+    
+    // Console Warning
+    console.log('%c⚠ STOP!', 'color: red; font-size: 50px; font-weight: bold;')
+    console.log('%cThis feature is for developers only. If someone told you to copy-paste something here to enable a feature, it is a scam.', 'color: white; font-size: 20px;')
+    
+    // DevTools Detection (Clears console to hide logs)
+    const checkDev = () => {
+      const start = performance.now()
+      debugger // Will pause execution if devtools is open
+      const end = performance.now()
+      if (end - start > 100) {
+        console.clear()
+      }
+    }
+    
+    document.addEventListener('contextmenu', handleContextMenu)
+    document.addEventListener('keydown', handleKeyDown)
+    // const devCheckInterval = setInterval(checkDev, 2000) // Uncomment for aggressive checking
+
+    return () => {
+      document.removeEventListener('contextmenu', handleContextMenu)
+      document.removeEventListener('keydown', handleKeyDown)
+      // clearInterval(devCheckInterval)
+    }
+  }, [])
+
+  useEffect(() => {
     localStorage.setItem('bs_session_id', sessionId)
     fetchData()
     
@@ -161,7 +196,7 @@ export default function PublicChat() {
              let imgMatch = m.content?.match(/\[Image:\s*(https?:\/\/[^\]\s]+)/);
              if (!imgMatch) imgMatch = m.content?.match(/Here's the image:\s*\[Image:\s*(https?:\/\/[^\]\s]+)/i);
              if (!imgMatch) imgMatch = m.content?.match(/Here's the image:\s*(https?:\/\/[^\]\s]+)/i);
-             const hasImage = imgMatch && imgMatch[1];
+              const hasImage = imgMatch && imgMatch[1] && imgMatch[1].startsWith('http');
              const textContent = hasImage ? m.content.replace(/\[Image:\s*https?:\/\/[^\]\s]+\]?/gi, '').replace(/Here's the image:\s*\[Image:\s*https?:\/\/[^\]\s]+\]?/gi, '').replace(/Here's the image:\s*https?:\/\/[^\]\s]+/gi, '').replace(/\[Image:\]/gi, '').trim() : m.content;
              return (
                <div key={m.id || i} className={`m-wrap ${m.role === 'user' ? 'user-side' : 'bot-side'}`}>

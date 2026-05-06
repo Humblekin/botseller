@@ -22,7 +22,7 @@ function fmtDate(d) {
 }
 
 function escHtml(s) {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;')
 }
 
 async function sendWhatsApp(to, text, token, phoneId) {
@@ -228,8 +228,6 @@ export default function AppShell({ user, profile, onUpdateProfile, onLogout, toa
   const [prodModalOpen, setProdModalOpen] = useState(false)
   const [editProdId, setEditProdId] = useState(null)
   const [delProdId, setDelProdId] = useState(null)
-  const [payMoOpen, setPayMoOpen] = useState(false)
-  const [payPlan, setPayPlan] = useState(null)
   const [whMoOpen, setWhMoOpen] = useState(false)
   const [whSteps, setWhSteps] = useState([])
   const [whRef, setWhRef] = useState('')
@@ -240,6 +238,27 @@ export default function AppShell({ user, profile, onUpdateProfile, onLogout, toa
     const saved = localStorage.getItem('bs_test_messages')
     return saved ? JSON.parse(saved) : []
   })
+
+  useEffect(() => {
+    // SECURITY SHIELD: Admin Dashboard Protection
+    console.log('%c⚠ RESTRICTED AREA', 'color: red; font-size: 50px; font-weight: bold;')
+    console.log('%cUnauthorized access to this system is prohibited and will be prosecuted.', 'color: white; font-size: 18px;')
+    
+    const handleContextMenu = (e) => e.preventDefault()
+    const handleKeyDown = (e) => {
+      if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J')) || (e.ctrlKey && e.key === 'U')) {
+        e.preventDefault()
+      }
+    }
+    
+    document.addEventListener('contextmenu', handleContextMenu)
+    document.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      document.removeEventListener('contextmenu', handleContextMenu)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [])
 
   useEffect(() => {
     localStorage.setItem('bs_test_messages', JSON.stringify(tbMessages))
@@ -471,26 +490,19 @@ export default function AppShell({ user, profile, onUpdateProfile, onLogout, toa
 
   const openPay = (pk) => {
     if (planKey === pk) { toast('Already on this plan', 'info'); return }
-    setPayPlan(pk)
-    setPayMoOpen(true)
-  }
+    const pl = PLANS[pk]
+    const paystackKey = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY
+    if (!paystackKey) { toast('Paystack public key not configured', 'err'); return }
 
-  const doPay = () => {
-    const pk = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY
-    if (!pk) { toast('Paystack public key not configured', 'err'); return }
-
-    const pl = PLANS[payPlan]
     const paystack = new PaystackPop()
-
     paystack.newTransaction({
-      key: pk,
+      key: paystackKey,
       email: user?.email,
       amount: pl.price * 100,
       currency: 'GHS',
       ref: 'BS_' + Date.now() + '_' + Math.random().toString(36).substring(2, 10),
       callback: async (response) => {
-        setPayMoOpen(false)
-        await processPaymentSuccess(payPlan, response.reference, pl.price)
+        await processPaymentSuccess(pk, response.reference, pl.price)
       },
       onClose: () => {
         toast('Payment cancelled', 'info')
@@ -788,11 +800,6 @@ export default function AppShell({ user, profile, onUpdateProfile, onLogout, toa
       />
 
       <DeleteModal open={delProdId !== null} onCancel={() => setDelProdId(null)} onConfirm={() => deleteProduct(delProdId)} />
-
-      <PaymentModal
-        open={payMoOpen} onClose={() => setPayMoOpen(false)} plan={payPlan} planData={PLANS[payPlan]}
-        userEmail={user?.email} onPay={doPay}
-      />
 
       <WebhookModal open={whMoOpen} steps={whSteps} refCode={whRef} amount={whAmt} done={whDone} onClose={closeWH} />
 
@@ -1610,50 +1617,6 @@ function DeleteModal({ open, onCancel, onConfirm }) {
           <button className="btn-s" style={{ flex: 1 }} onClick={onCancel}>Cancel</button>
           <button className="btn-d" style={{ flex: 1 }} onClick={onConfirm}>Delete</button>
         </div>
-      </div>
-    </div>
-  )
-}
-
-function PaymentModal({ open, onClose, plan, planData, userEmail, onPay }) {
-  const [card, setCard] = useState('')
-  const [exp, setExp] = useState('')
-  const [cvv, setCvv] = useState('')
-  const [email, setEmail] = useState(userEmail || '')
-
-  if (!open || !planData) return null
-
-  const handleCard = (v) => { let val = v.replace(/\D/g, '').substring(0, 16); setCard(val.replace(/(.{4})/g, '$1 ').trim()) }
-  const handleExp = (v) => { let val = v.replace(/\D/g, '').substring(0, 4); if (val.length > 2) val = val.substring(0, 2) + '/' + val.substring(2); setExp(val) }
-
-  const handlePay = () => {
-    if (!card || card.replace(/\s/g, '').length < 13) return
-    if (!exp || !exp.includes('/')) return
-    if (!cvv || cvv.length < 3) return
-    if (!email || !email.includes('@')) return
-    onPay()
-  }
-
-  return (
-    <div className={`mo ${open ? 'open' : ''}`} onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="md" style={{ maxWidth: 440 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-          <h2 style={{ fontSize: 20, fontWeight: 700 }}>Complete Payment</h2>
-          <button className="btn-g" style={{ padding: '6px 8px' }} onClick={onClose} aria-label="Close"><i className="fa-solid fa-xmark" style={{ fontSize: 18 }} /></button>
-        </div>
-        <div style={{ background: 'var(--bg)', borderRadius: 10, padding: 20, marginBottom: 20 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}><span style={{ color: 'var(--fg2)', fontSize: 14 }}>Plan</span><span style={{ fontWeight: 600, fontSize: 14 }}>{planData.name}</span></div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}><span style={{ color: 'var(--fg2)', fontSize: 14 }}>Amount</span><span style={{ fontWeight: 700, fontSize: 18, color: 'var(--ac)' }}>GH₵ {planData.price.toFixed(2)}</span></div>
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--fg2)', fontSize: 14 }}>Billing</span><span style={{ fontWeight: 500, fontSize: 14 }}>Monthly</span></div>
-        </div>
-        <div style={{ marginBottom: 18 }}><label className="fl">Card Number</label><input type="text" className="fi" value={card} onChange={e => handleCard(e.target.value)} placeholder="4123 4567 8901 2345" maxLength={19} /></div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 18 }}>
-          <div><label className="fl">Expiry</label><input type="text" className="fi" value={exp} onChange={e => handleExp(e.target.value)} placeholder="MM/YY" maxLength={5} /></div>
-          <div><label className="fl">CVV</label><input type="text" className="fi" value={cvv} onChange={e => setCvv(e.target.value)} placeholder="123" maxLength={3} /></div>
-        </div>
-        <div style={{ marginBottom: 24 }}><label className="fl">Email</label><input type="email" className="fi" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" /></div>
-        <button className="btn-p" style={{ width: '100%', padding: 14 }} onClick={handlePay}><i className="fa-solid fa-lock" style={{ marginRight: 8 }} /> Pay Now</button>
-        <p style={{ textAlign: 'center', fontSize: 12, color: 'var(--fg3)', marginTop: 12 }}><i className="fa-solid fa-shield-halved" style={{ marginRight: 4 }} /> Secured by Paystack</p>
       </div>
     </div>
   )

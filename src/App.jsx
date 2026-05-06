@@ -5,10 +5,10 @@ import Landing from './components/Landing'
 import Login from './components/Login'
 import Signup from './components/Signup'
 import AppShell from './components/AppShell'
-import AdminDashboard from './components/AdminDashboard'
 import Privacy from './components/Privacy'
 import Terms from './components/Terms'
 import PublicChat from './components/PublicChat'
+import ResetPassword from './components/ResetPassword'
 
 function App() {
   const [page, setPage] = useState('pgLand')
@@ -23,6 +23,13 @@ function App() {
   }, [])
 
   useEffect(() => {
+    // Check for recovery redirect from Supabase
+    const hashParams = new URLSearchParams(window.location.hash.substring(1))
+    if (hashParams.get('type') === 'recovery') {
+      setPage('pgResetPassword')
+      return
+    }
+
     // Basic routing for Meta verification
     // New vNext Routing
     const path = window.location.pathname
@@ -85,11 +92,28 @@ function App() {
   const handleLogin = async (email, password) => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) { toast(error.message, 'err'); return }
-    const { data: prof } = await supabase.from('profiles').select('*').eq('id', data.user.id).single()
+
+    // Optimistic navigation - set user and navigate immediately
     setUser(data.user)
-    setProfile(prof)
-    toast('Welcome back!')
-    setPage('pgApp')
+
+    // Fetch profile in background with retry for timing issues
+    const fetchProfile = async () => {
+      for (let i = 0; i < 3; i++) {
+        const { data: prof, error: profError } = await supabase.from('profiles').select('*').eq('id', data.user.id).single()
+        if (!profError && prof) {
+          setProfile(prof)
+          setPage('pgApp')
+          toast('Welcome back!')
+          return
+        }
+        if (i < 2) await new Promise(r => setTimeout(r, 500))
+      }
+      // Profile still missing after retries - show app with fallback
+      setProfile(null)
+      setPage('pgApp')
+      toast('Welcome back!')
+    }
+    fetchProfile()
   }
 
   const handleSignup = async (bizName, email, password, industry) => {
@@ -151,9 +175,10 @@ function App() {
     pgLand: <Landing onNavigate={setPage} />,
     pgLogin: <Login onLogin={handleLogin} onNavigate={setPage} />,
     pgSignup: <Signup onSignup={handleSignup} onNavigate={setPage} />,
-    pgApp: user && profile ? (
+    pgApp: user ? (
       <AppShell user={user} profile={profile} onUpdateProfile={handleUpdateProfile} onLogout={handleLogout} toast={toast} />
     ) : <Landing onNavigate={setPage} />,
+    pgResetPassword: <ResetPassword onNavigate={setPage} />,
     pgPrivacy: <Privacy />,
     pgTerms: <Terms />,
     pgPublicChat: <PublicChat />
